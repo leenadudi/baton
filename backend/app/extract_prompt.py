@@ -11,6 +11,7 @@ Rules:
 - topic must be one of the topic keys below and value must be one of that topic's allowed values, copied exactly.
 - Emit a tag only when the note states or clearly orders an active instruction on that topic (an order, plan, or recommendation to act). Do not tag history, hypotheticals, questions, or descriptions of what another team said.
 - At most one tag per topic. If the note gives several values for one topic, choose the one it is ordering going forward.
+- For destination, the note must literally name where the patient is going: home, home with home health, SNF, or inpatient rehab. Never infer a destination. Example: "Regular diet. Cleared for discharge this afternoon once he has voided." names no destination, so it gets a diet tag only.
 - If the note contains no matching instruction, return {"tags": [], "reconcile": false}.
 - Set "reconcile" to true only if the note explicitly states it resolves or supersedes earlier conflicting instructions on a topic.
 - Do not add topics, do not paraphrase values, do not judge whether anything conflicts, and do not output anything except the JSON object.
