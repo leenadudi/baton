@@ -82,6 +82,12 @@ python scripts/load_fhir.py --bundles dataset/synthea \
 
 Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). API routes:
 
+- `GET /patients`, `GET /patients/{id}` — unit panel: patient + handoff fields, notes, and current issues in one response
+- `POST /patients/{id}/notes` — demo-only: add an instruction note locally (not a FHIR write)
+- `PATCH /issues/{id}` — demo-only local state: owner, fill field, pending owner, clear/escalate blocker, adopt a conflict value
+- `POST /extract` — free-text note → `["topic","value"]` tags (OpenAI; needs `OPENAI_API_KEY`)
+- `GET /brief` — plain-text shift handoff, severity then soonest discharge, cap 14 + remainder line
+- `POST /demo/reset` — clear in-memory demo state
 - `GET /fhir/status` — FHIR base URL and server `fhirVersion`
 - `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
 - `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
@@ -107,6 +113,9 @@ python scripts/load_fixtures.py --base-url https://hapi.fhir.org/baseR4
 # or just regenerate the JSON under dataset/fixtures/ without a server:
 python scripts/load_fixtures.py --dump-only
 ```
+### Deploy (Render)
+
+`render.yaml` defines a single `baton-api` web service (Python, `rootDir: backend`, `uvicorn app.main:app --port $PORT`). Set `OPENAI_API_KEY`, `FHIR_BASE_URL`, and `CORS_ORIGINS` in the Render dashboard; CORS always includes `http://localhost:5173`.
 
 To use a local server instead of public HAPI, run HAPI in docker and point `FHIR_BASE_URL` (and `--base-url`) at it:
 
