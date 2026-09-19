@@ -2,12 +2,12 @@ import { useState } from 'react'
 import { OWNERS, TYPE_LABEL, SEV_LABEL } from '../data/chart.js'
 import { ago } from '../lib/rules.js'
 
-function OwnerSelect({ issue, owner, actions }) {
+function OwnerSelect({ issue, actions }) {
   return (
     <select
-      className={`own${owner ? '' : ' un'}`}
+      className={`own${issue.owner ? '' : ' un'}`}
       aria-label="Owner of this issue"
-      value={owner || ''}
+      value={issue.owner || ''}
       onChange={(e) => actions.setOwner(issue.pid, issue.id, e.target.value, issue.title)}
     >
       <option value="">Unassigned</option>
@@ -98,14 +98,14 @@ function BlockerBody({ issue, actions }) {
   )
 }
 
-export default function IssueCard({ issue, owner, actions }) {
+export default function IssueCard({ issue, actions }) {
   return (
     <article className={`card ${issue.type}`}>
       <div className="ct">
         <span className={`badge ${issue.type}`}>{TYPE_LABEL[issue.type]}</span>
         <span className={`sev ${issue.sev}`}>{SEV_LABEL[issue.sev]}</span>
         {issue.escalated && <span className="esc">Escalated</span>}
-        <OwnerSelect issue={issue} owner={owner} actions={actions} />
+        <OwnerSelect issue={issue} actions={actions} />
       </div>
       <h4>{issue.title}</h4>
       {issue.type === 'conflict' && <ConflictBody issue={issue} actions={actions} />}

@@ -1,15 +1,13 @@
-import { dischStatus } from '../lib/rules.js'
-
-export default function SummaryTiles({ rows, owners }) {
+export default function SummaryTiles({ patients }) {
   let conflict = 0, handoff = 0, blocker = 0, unowned = 0, atRisk = 0
-  rows.forEach(({ p, issues }) => {
-    issues.forEach((i) => {
+  patients.forEach((p) => {
+    p.issues.forEach((i) => {
       if (i.type === 'conflict') conflict++
       else if (i.type === 'handoff') handoff++
       else blocker++
-      if (!owners[i.id]) unowned++
+      if (!i.owner) unowned++
     })
-    if (p.dischargeInH <= 24 && dischStatus(p, issues) === 'risk') atRisk++
+    if (p.dischargeInH <= 24 && p.dischStatus === 'risk') atRisk++
   })
 
   const tiles = [
