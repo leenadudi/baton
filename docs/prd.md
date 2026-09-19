@@ -252,9 +252,11 @@ Lock this before splitting implementation. FHIR resource shapes are the chart; *
 | `POST` | `/patients/:id/notes` | Leena | Demo-only: add an instruction locally (David L. NPO trick). **Not** a FHIR write. |
 | `PATCH` | `/issues/:id` | Leena | Demo-only local state: owner, fill field, clear/escalate blocker, adopt a conflict value |
 | `POST` | `/extract` | Nicole (logic) / Leena (route) | Note text in → tags out |
-| `GET` or `POST` | `/brief` (or `/patients/brief`) | Leena | Generate shift-handoff text; never writes FHIR |
+| `GET` | `/brief` | Leena | Unit-wide shift-handoff text (all patients, severity then soonest discharge, cap 14 + remainder line); never writes FHIR |
 
 CORS must allow `http://localhost:5173` and the deployed Vercel origin(s).
+
+Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) may live in memory only — Render cold starts reset them. That is acceptable: re-do the demo action after a wake rather than persisting demo state.
 
 ### 8.2 `POST /extract`
 
@@ -282,6 +284,8 @@ CORS must allow `http://localhost:5173` and the deployed Vercel origin(s).
 ```
 
 Topics and values **must** be from the `TOPICS` table in §3.1. If the note has no matching instruction, return `"tags": []`. Do not invent topics.
+
+`/extract` returns `{topic, value}` objects because that is the friendliest model schema, but the route **normalizes** each tag to the `["topic", "value"]` pair the prototype engine and `notes[].tags` consume before storing or returning it.
 
 ### 8.3 Panel patient object (frontend contract)
 
@@ -324,6 +328,8 @@ Shape the JSON so Sophie can swap mock `PATIENTS` for `GET /patients` without re
   "issues": []
 }
 ```
+
+Note `notes[].tags` uses `["topic", "value"]` pairs — the exact shape `tagOf` / `findConflicts` consume in the prototype. The backend emits pairs here even though `/extract` speaks in `{topic, value}` objects.
 
 `issues` may be computed server-side (preferred, so React and brief share one engine) using the prototype issue shape: `id`, `pid`, `type` (`conflict` | `handoff` | `blocker`), `sev` (`high` | `med` | `low`), `title`, `sub`, `why`, plus type-specific fields (`topic`/`vals`, `fix`, `bid`).
 
@@ -472,7 +478,7 @@ What is not true yet:
 
 ## 13. Pitch (do not skip in the last hour)
 
-Owner: whoever is on the deck; Sophie is assigned on #12. Content everyone should be able to say:
+Owner: whoever is on the deck; Sophie helps with positioning (per #13 — #12 is closed reference material). Content everyone should be able to say:
 
 1. **Positioning:** Epic/Oracle already ship empty handoff forms. Baton fills the form and flags what is missing. We are not replacing the handoff tool.
 2. **FHIR-native:** no custom data model; reads resources hospitals already have.
