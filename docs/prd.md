@@ -174,9 +174,18 @@ Prototype patients to preserve as the narrative set (map onto Synthea IDs when d
 
 **Stack (already in repo):**
 
-- Frontend: React + Vite (`frontend/`). Starter is empty except a health-check ping.
+- Frontend: **React + Vite** (`frontend/`). Keep Vite. React is the UI library; Vite is only the bundler/dev server. You cannot ship "just React" without *some* bundler (CRA/`react-scripts` is the same class of tool and still inlines `REACT_APP_*` into the browser). Switching to Next.js would rewrite Sophie's slice for no product gain. Starter is empty except a health-check ping.
 - Backend: FastAPI (`backend/app/main.py`). Today: `/api/health` + CORS for `http://localhost:5173`.
 - Reference UI + rule engine: `frontend/public/prototype.html`. Treat this as the spec for frontend *and* backend behavior, not a throwaway mockup.
+- **Do not use Firebase** (including Blaze). We do not need auth, realtime DB, or hosting from Google for this demo.
+
+**Vite does not leak keys by existing.** Keys leak if you put them in any `VITE_*` (or `REACT_APP_*`) env var — Vite inlines those into the public JS bundle. Fix:
+
+- `OPENAI_API_KEY` and the FHIR client live **only** on FastAPI (`os.environ`, Render env, never `VITE_`).
+- The only frontend env var allowed is `VITE_API_URL` (public backend URL, not a secret).
+- Extraction (`POST /extract`) never runs in the browser.
+
+**Hosted demo (judges, not localhost):** Vercel Hobby for the Vite SPA + **Render Free** Web Service for FastAPI. Public HAPI FHIR stays as-is. Details in §6.1.
 
 **Separation that must survive the demo (OpenAI Challenge):**
 
@@ -187,6 +196,25 @@ Prototype patients to preserve as the narrative set (map onto Synthea IDs when d
 Do not let the model output "this is a conflict." That decision stays in code.
 
 **Write-back:** generate-and-copy only. The generate-brief endpoint returns text. It never `POST`s/`PUT`s to FHIR. Next rung *if ever* (pitch only): write a `Task` — the resource EHRs most readily accept writes on. Signed notes are out.
+
+### 6.1 Public hosting (judges must get the full UX)
+
+Localhost is for development only. Judges need one public URL that does list → patient → flags → extract-backed tags → copyable brief.
+
+| Piece | Host (free) | Why |
+|---|---|---|
+| React SPA | **Vercel** Hobby | Native Vite static deploy. `VITE_API_URL` = Render origin. |
+| FastAPI | **Render** Free Web Service | Runs Python as-is (FHIR reads + OpenAI). Vercel is a poor fit for long-lived FastAPI + outbound FHIR/OpenAI. |
+| Chart data | Public **HAPI FHIR** test server | Already free; Amy loads Synthea here. |
+| Secrets | Render env vars | `OPENAI_API_KEY`, `FHIR_BASE_URL`. Not on Vercel. |
+
+**CORS:** allow `http://localhost:5173` **and** the Vercel production origin (and the `*.vercel.app` preview origin if we share preview links).
+
+**Render free sleeps after idle.** Before a judging slot, open `https://<api>.onrender.com/api/health` once and wait for 200. Optional: a free UptimeRobot ping every 5 min so the API is warm. If Render is blocked, fallback is **Fly.io** free allowance — same split, still no Firebase.
+
+**Sophie:** `vercel` from `frontend/` (or GitHub integration, root directory `frontend`, build `npm run build`, output `dist`). **Leena:** `backend/` as a Render Web Service, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+
+**Cost / token budget:** we have ~$25 in credits and a free Cursor plan. Cache extraction for the 2–3 demo patients (do not re-call OpenAI on every panel refresh). Keep Cursor/agent sessions scoped to one workstream. No paid Firebase, no Vercel Pro, no Render paid unless the free instance will not stay up for judging.
 
 ---
 
@@ -224,9 +252,11 @@ Lock this before splitting implementation. FHIR resource shapes are the chart; *
 | `POST` | `/patients/:id/notes` | Leena | Demo-only: add an instruction locally (David L. NPO trick). **Not** a FHIR write. |
 | `PATCH` | `/issues/:id` | Leena | Demo-only local state: owner, fill field, clear/escalate blocker, adopt a conflict value |
 | `POST` | `/extract` | Nicole (logic) / Leena (route) | Note text in → tags out |
-| `GET` or `POST` | `/brief` (or `/patients/brief`) | Leena | Generate shift-handoff text; never writes FHIR |
+| `GET` | `/brief` | Leena | Unit-wide shift-handoff text (all patients, severity then soonest discharge, cap 14 + remainder line); never writes FHIR |
 
-CORS must allow `http://localhost:5173`.
+CORS must allow `http://localhost:5173` and the deployed Vercel origin(s).
+
+Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) may live in memory only — Render cold starts reset them. That is acceptable: re-do the demo action after a wake rather than persisting demo state.
 
 ### 8.2 `POST /extract`
 
@@ -254,6 +284,8 @@ CORS must allow `http://localhost:5173`.
 ```
 
 Topics and values **must** be from the `TOPICS` table in §3.1. If the note has no matching instruction, return `"tags": []`. Do not invent topics.
+
+`/extract` returns `{topic, value}` objects because that is the friendliest model schema, but the route **normalizes** each tag to the `["topic", "value"]` pair the prototype engine and `notes[].tags` consume before storing or returning it.
 
 ### 8.3 Panel patient object (frontend contract)
 
@@ -296,6 +328,8 @@ Shape the JSON so Sophie can swap mock `PATIENTS` for `GET /patients` without re
   "issues": []
 }
 ```
+
+Note `notes[].tags` uses `["topic", "value"]` pairs — the exact shape `tagOf` / `findConflicts` consume in the prototype. The backend emits pairs here even though `/extract` speaks in `{topic, value}` objects.
 
 `issues` may be computed server-side (preferred, so React and brief share one engine) using the prototype issue shape: `id`, `pid`, `type` (`conflict` | `handoff` | `blocker`), `sev` (`high` | `med` | `low`), `title`, `sub`, `why`, plus type-specific fields (`topic`/`vals`, `fix`, `bid`).
 
@@ -437,13 +471,14 @@ What is not true yet:
 - **Synthetic data, no PHI.** UI should keep the prototype's "Synthetic data, no PHI" affordance.
 - **Liability posture:** coordination aid; does not replace clinical judgment or hospital policy. Keep that footer.
 - **Auditability:** flags cite source snippet + author + (when available) FHIR id.
-- **Secrets:** OpenAI keys stay in env (`.env` gitignored), never in the frontend bundle.
+- **Secrets:** `OPENAI_API_KEY` only on the FastAPI host (local `.env` gitignored; Render dashboard in prod). Never `VITE_OPENAI_*`, never commit `.env`, never call OpenAI from React.
+- **Credits:** cache demo-patient extraction; prefer server rule engine over extra model calls.
 
 ---
 
 ## 13. Pitch (do not skip in the last hour)
 
-Owner: whoever is on the deck; Sophie is assigned on #12. Content everyone should be able to say:
+Owner: whoever is on the deck; Sophie helps with positioning (per #13 — #12 is closed reference material). Content everyone should be able to say:
 
 1. **Positioning:** Epic/Oracle already ship empty handoff forms. Baton fills the form and flags what is missing. We are not replacing the handoff tool.
 2. **FHIR-native:** no custom data model; reads resources hospitals already have.
@@ -463,5 +498,6 @@ The demo is done when all of the following are true:
 - [ ] Shift brief generates, copies, and is not written to FHIR (no write client in the backend).
 - [ ] Shift-change timer exists and the deck explains why.
 - [ ] README still runs: backend `:8000`, frontend `:5173`, prototype still at `/prototype.html`.
+- [ ] Public Vercel URL + live Render API: judges can complete the unit panel → conflict card → copy brief path without localhost. Health check has been warmed if Render was asleep.
 
 Individual checklists stay on #13–#16. If this PRD and an issue disagree on a *task checkbox*, follow the issue. If they disagree on *product behavior*, follow this PRD and update the issue.
