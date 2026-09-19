@@ -1,0 +1,51 @@
+{
+  "_comment": "Persona -> loaded FHIR Patient mapping (issue #16, handoff Task 1). Loaded patients come from dataset/patient_ids.json on the public HAPI server; ages/sexes are approximate matches, names/rooms/dx are persona overrides the API layer applies when building the §8.3 panel object. Spare loaded patient: Patient/46315.",
+  "p1": {
+    "fhirPatientId": "Patient/42157",
+    "name": "Margaret A.",
+    "age": 78,
+    "room": "412",
+    "dx": "Hip fracture, ORIF post-op day 2",
+    "dischargeInH": 30
+  },
+  "p2": {
+    "fhirPatientId": "Patient/44086",
+    "name": "Robert C.",
+    "age": 64,
+    "room": "407",
+    "dx": "Heart failure exacerbation, day 3",
+    "dischargeInH": 20
+  },
+  "p3": {
+    "fhirPatientId": "Patient/47767",
+    "name": "Priya S.",
+    "age": 41,
+    "room": "305",
+    "dx": "Laparoscopic cholecystectomy, post-op day 1",
+    "dischargeInH": 6
+  },
+  "p4": {
+    "fhirPatientId": "Patient/48900",
+    "name": "James O.",
+    "age": 55,
+    "room": "418",
+    "dx": "Diabetic ketoacidosis, resolved",
+    "dischargeInH": 26
+  },
+  "p5": {
+    "fhirPatientId": "Patient/44970",
+    "name": "Elena V.",
+    "age": 83,
+    "room": "421",
+    "dx": "Pneumonia, improving on day 4",
+    "dischargeInH": 44
+  },
+  "p6": {
+    "fhirPatientId": "Patient/43825",
+    "name": "David L.",
+    "age": 29,
+    "room": "310",
+    "dx": "Appendectomy, post-op day 1",
+    "dischargeInH": 3
+  }
+}

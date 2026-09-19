@@ -1,0 +1,25 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "baton-p1-consult-6",
+  "status": "active",
+  "intent": "order",
+  "code": {
+    "text": "Nursing consult"
+  },
+  "subject": {
+    "reference": "Patient/42157"
+  },
+  "authoredOn": "2026-09-17T22:26:02Z",
+  "requester": {
+    "reference": "Practitioner/baton-prac-k-adeyemi-rn",
+    "display": "K. Adeyemi, RN"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "resourceType": "Practitioner",
+  "id": "baton-prac-dr-wen",
+  "name": [
+    {
+      "text": "Dr. Wen"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

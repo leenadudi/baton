@@ -1,0 +1,46 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "baton-p5-note-4",
+  "status": "current",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "34109-9",
+        "display": "Note"
+      }
+    ]
+  },
+  "category": [
+    {
+      "text": "Nursing"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/44970"
+  },
+  "date": "2026-09-19T17:26:02Z",
+  "author": [
+    {
+      "reference": "Practitioner/baton-prac-k-adeyemi-rn",
+      "display": "K. Adeyemi, RN"
+    }
+  ],
+  "description": "Baton demo note",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "data": "TVJTQSBzY3JlZW4gbmVnYXRpdmUuIFByZWNhdXRpb25zIGxpZnRlZCBhbmQgc2lnbmFnZSByZW1vdmVkLg=="
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

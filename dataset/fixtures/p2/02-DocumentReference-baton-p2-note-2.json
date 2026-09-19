@@ -1,0 +1,46 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "baton-p2-note-2",
+  "status": "current",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "34109-9",
+        "display": "Note"
+      }
+    ]
+  },
+  "category": [
+    {
+      "text": "Night Resident"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/44086"
+  },
+  "date": "2026-09-19T09:26:02Z",
+  "author": [
+    {
+      "reference": "Practitioner/baton-prac-dr-alvarez",
+      "display": "Dr. Alvarez"
+    }
+  ],
+  "description": "Baton demo note",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "data": "UGF0aWVudCB2ZXJ5IHRoaXJzdHkgb3Zlcm5pZ2h0LiBFbmNvdXJhZ2Ugb3JhbCBmbHVpZHMgYW5kIG9rYXkgdG8gbGliZXJhbGl6ZSB0aGUgZGlldC4="
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

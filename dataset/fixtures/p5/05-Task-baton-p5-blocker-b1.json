@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p5-blocker-b1",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Referral"
+  },
+  "description": "Home health referral awaiting physician signature",
+  "for": {
+    "reference": "Patient/44970"
+  },
+  "authoredOn": "2026-09-19T01:26:02Z",
+  "owner": {
+    "display": "Hospitalist"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

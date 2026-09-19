@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p1-blocker-b2",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Transport"
+  },
+  "description": "Ambulance transport not booked",
+  "for": {
+    "reference": "Patient/42157"
+  },
+  "authoredOn": "2026-09-19T16:26:02Z",
+  "owner": {
+    "display": "Case Management"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

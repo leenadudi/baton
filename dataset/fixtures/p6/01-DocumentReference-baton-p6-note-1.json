@@ -1,0 +1,46 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "baton-p6-note-1",
+  "status": "current",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "34109-9",
+        "display": "Note"
+      }
+    ]
+  },
+  "category": [
+    {
+      "text": "Hospitalist"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/43825"
+  },
+  "date": "2026-09-19T14:26:02Z",
+  "author": [
+    {
+      "reference": "Practitioner/baton-prac-dr-okafor",
+      "display": "Dr. Okafor"
+    }
+  ],
+  "description": "Baton demo note",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "data": "UmVndWxhciBkaWV0LiBDbGVhcmVkIGZvciBkaXNjaGFyZ2UgdGhpcyBhZnRlcm5vb24gb25jZSBoZSBoYXMgdm9pZGVkLg=="
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

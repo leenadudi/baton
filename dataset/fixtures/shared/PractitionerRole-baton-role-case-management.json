@@ -1,0 +1,21 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "baton-role-case-management",
+  "practitioner": {
+    "reference": "Practitioner/baton-prac-t-nguyen-rn",
+    "display": "T. Nguyen, RN"
+  },
+  "code": [
+    {
+      "text": "Case Management"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

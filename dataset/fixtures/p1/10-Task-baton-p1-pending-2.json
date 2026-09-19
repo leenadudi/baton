@@ -1,0 +1,22 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p1-pending-2",
+  "status": "requested",
+  "intent": "order",
+  "code": {
+    "text": "Pending result"
+  },
+  "description": "Type and screen",
+  "for": {
+    "reference": "Patient/42157"
+  },
+  "authoredOn": "2026-09-19T16:26:02Z",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "baton-role-pharmacy",
+  "practitioner": {
+    "reference": "Practitioner/baton-prac-s-bhatt-pharmd",
+    "display": "S. Bhatt, PharmD"
+  },
+  "code": [
+    {
+      "text": "Pharmacy"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

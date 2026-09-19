@@ -1,0 +1,44 @@
+{
+  "resourceType": "Consent",
+  "id": "baton-p5-consent-codestatus",
+  "status": "active",
+  "scope": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/consentscope",
+        "code": "adr"
+      }
+    ]
+  },
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/consentcategorycodes",
+          "code": "acd",
+          "display": "Advance Directive"
+        }
+      ]
+    }
+  ],
+  "patient": {
+    "reference": "Patient/44970"
+  },
+  "dateTime": "2026-09-17T22:26:02Z",
+  "provision": {
+    "type": "permit",
+    "code": [
+      {
+        "text": "DNR/DNI"
+      }
+    ]
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p5-followup",
+  "intent": "order",
+  "for": {
+    "reference": "Patient/44970"
+  },
+  "authoredOn": "2026-09-18T22:26:02Z",
+  "status": "accepted",
+  "code": {
+    "text": "Follow-up owner"
+  },
+  "description": "PCP Dr. Hale",
+  "owner": {
+    "display": "PCP Dr. Hale"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "baton-role-infectious-disease",
+  "practitioner": {
+    "reference": "Practitioner/baton-prac-dr-wen",
+    "display": "Dr. Wen"
+  },
+  "code": [
+    {
+      "text": "Infectious Disease"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

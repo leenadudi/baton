@@ -1,0 +1,17 @@
+{
+  "resourceType": "Practitioner",
+  "id": "baton-prac-dr-shah",
+  "name": [
+    {
+      "text": "Dr. Shah"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

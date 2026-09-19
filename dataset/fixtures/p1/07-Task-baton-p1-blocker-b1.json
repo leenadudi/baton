@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p1-blocker-b1",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Prior authorization"
+  },
+  "description": "SNF insurance authorization",
+  "for": {
+    "reference": "Patient/42157"
+  },
+  "authoredOn": "2026-09-18T15:26:02Z",
+  "owner": {
+    "display": "Payer"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

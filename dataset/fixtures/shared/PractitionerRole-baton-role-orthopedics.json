@@ -1,0 +1,21 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "baton-role-orthopedics",
+  "practitioner": {
+    "reference": "Practitioner/baton-prac-dr-reyes",
+    "display": "Dr. Reyes"
+  },
+  "code": [
+    {
+      "text": "Orthopedics"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "resourceType": "CareTeam",
+  "id": "baton-p5-careteam",
+  "status": "active",
+  "subject": {
+    "reference": "Patient/44970"
+  },
+  "participant": [
+    {
+      "role": [
+        {
+          "text": "Infectious Disease"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-dr-wen",
+        "display": "Dr. Wen"
+      }
+    },
+    {
+      "role": [
+        {
+          "text": "Case Management"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-t-nguyen-rn",
+        "display": "T. Nguyen, RN"
+      }
+    },
+    {
+      "role": [
+        {
+          "text": "PT"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-j-lindqvist-pt",
+        "display": "J. Lindqvist, PT"
+      }
+    },
+    {
+      "role": [
+        {
+          "text": "Nursing"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-k-adeyemi-rn",
+        "display": "K. Adeyemi, RN"
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

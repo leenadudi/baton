@@ -34,14 +34,65 @@ Present in the loaded Synthea data: `Patient`, `Encounter`, `Condition`, `Observ
 - [x] Check every resource type in the §7 table (see coverage above)
 - [x] Record exact patient IDs (`dataset/patient_ids.json`)
 - [x] Review Synthea note quality (thin/templated)
-- [ ] Swap in richer note text (MTSamples-style) with Nicole
-- [ ] Map loaded patients onto the six PRD §5 demo patients
+- [x] Swap in richer note text — done via hand-authored `DocumentReference` fixtures carrying the exact prototype note text (see "Fixture load — done" below)
+- [x] Map loaded patients onto the six PRD §5 demo patients (`dataset/demo_patients.json`)
 - [x] Hand FHIR URL + loaded contents to Leena
+
+## Fixture load — done (2026-09-19)
+
+`scripts/load_fixtures.py` generates FHIR resources straight from
+`backend/app/demo_patients.py` (single source of truth) and PUTs them with
+fixed `baton-<pid>-*` ids onto the patients mapped in
+`dataset/demo_patients.json`. 89 resources loaded onto
+`https://hapi.fhir.org/baseR4`; verified via `DocumentReference?patient=` /
+`Task?patient=` searches and the backend `patient_chart` path.
+
+Persona → Patient mapping: p1→42157, p2→44086, p3→47767, p4→48900,
+p5→44970, p6→43825 (spare: 46315). Patient `name` + `contact` were also
+updated in place to match the personas.
+
+### Encodings the backend must read (agreed contract)
+
+- `DocumentReference` note: role in `category[0].text`, author in
+  `author[0].display` (+ `Practitioner` reference), text = base64
+  `content[0].attachment.data`, recency in `date`.
+- `Task` blocker: `priority=urgent` ⇔ `blocks: true`; `code.text` = category,
+  `description` = label, `owner.display` = waitingOn, `authoredOn` = age.
+- `Task` pending result: `code.text="Pending result"`, `description` = name,
+  `owner` omitted ⇒ unowned flag.
+- `Task` handoff fields: `code.text="Follow-up owner"` (`owner.display`),
+  `code.text="Medication reconciliation"` (`status=completed`).
+- `Consent` code status: `scope=adr`, `category=acd`,
+  `provision.code[0].text` = display value.
+- `AllergyIntolerance.code.text` = allergy display; `"No known drug
+  allergies"` for NKDA personas.
+- `Patient.contact[0].name.text` = family contact.
+- `Practitioner`/`PractitionerRole`/`CareTeam`/`ServiceRequest` fixtures also
+  loaded (Task 5) so every §7 row lights up.
+
+### Important: tag-filter contract for `GET /patients`
+
+Public HAPI enforces referential integrity — DELETE on referenced resources
+returns 409, so **stale Synthea `DocumentReference`s/`AllergyIntolerance`s/
+`CareTeam`s could not be removed** from the mapped patients (e.g. p2 still
+carries Mold/Shellfish allergies alongside its NKDA fixture). Every
+Baton-authored resource therefore carries
+`meta.tag = {system: "https://github.com/leenadudi/baton", code: "demo-fixture"}`
+and a `baton-` id prefix. `GET /patients` must read only tagged/`baton-`
+resources for notes, handoff fields, blockers and pending results, or stale
+Synthea content will create false flags.
+
+Rerun `scripts/load_fixtures.py` any time — PUT with fixed ids is idempotent
+and doubles as the reload path after a public-HAPI wipe.
 
 ### #14 (Leena) — checked in PR #20
 Setup, FHIR client, rule-engine port, CORS (`localhost:5173` + `CORS_ORIGINS`), requirements, `/extract` pair normalization. Still open: `GET /patients`, `GET /patients/:id`, `GET /brief`, demo-only `POST /patients/:id/notes` / `PATCH /issues/:id`, Render deploy.
 
 ## Remaining work for the data workstream (Amy)
+
+**Status: done 2026-09-19** — all six personas are loaded; see "Fixture load —
+done" above for the encodings and the tag-filter contract. The task list below
+is kept as the spec of what was implemented.
 
 Goal: the 2–3 demo patients on public HAPI carry the exact notes, handoff fields, and blockers from the six prototype personas, so Leena's `GET /patients` can read them from FHIR and the rule engine fires the same flags the prototype shows. Source of truth for every value below: `frontend/public/prototype.html` `PATIENTS` array (also copied verbatim in `backend/app/demo_patients.py`).
 

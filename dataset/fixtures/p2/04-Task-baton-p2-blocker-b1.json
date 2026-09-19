@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p2-blocker-b1",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Equipment (DME)"
+  },
+  "description": "Home oxygen order not placed",
+  "for": {
+    "reference": "Patient/44086"
+  },
+  "authoredOn": "2026-09-19T08:26:02Z",
+  "owner": {
+    "display": "Hospitalist"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

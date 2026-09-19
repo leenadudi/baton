@@ -1,0 +1,17 @@
+{
+  "resourceType": "Practitioner",
+  "id": "baton-prac-k-adeyemi-rn",
+  "name": [
+    {
+      "text": "K. Adeyemi, RN"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

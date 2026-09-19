@@ -1,0 +1,25 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p5-pending-1",
+  "status": "requested",
+  "intent": "order",
+  "code": {
+    "text": "Pending result"
+  },
+  "description": "Sputum culture",
+  "for": {
+    "reference": "Patient/44970"
+  },
+  "authoredOn": "2026-09-19T16:26:02Z",
+  "owner": {
+    "display": "Hospitalist"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}
