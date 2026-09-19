@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app import demo_patients, rules
+from app.extract import extract
 from app.fhir_client import FhirClient
 
 log = logging.getLogger(__name__)
@@ -66,7 +67,6 @@ async def tags_for(text: str, role: str | None = None) -> list:
     if known:
         return known
     if os.environ.get("OPENAI_API_KEY"):
-        from app.extract import extract
         result = await extract(text, role)
         tags = [[t["topic"], t["value"]] for t in result["tags"]]
         _note_tags[text.strip()] = tags
@@ -213,6 +213,10 @@ async def ensure_loaded(fhir: FhirClient) -> None:
         log.warning("FHIR panel load failed, falling back to demo data: %s", exc)
         _cache.update(patients=None, source="demo", error=str(exc),
                       loaded_at=time.time())
+
+
+def invalidate() -> None:
+    _cache["loaded_at"] = 0.0
 
 
 def current_patients() -> list[dict] | None:

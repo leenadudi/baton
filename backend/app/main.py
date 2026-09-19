@@ -252,7 +252,7 @@ async def demo_reset() -> dict:
 
 @app.post("/demo/refresh")
 async def demo_refresh() -> dict:
-    fhir_panel._cache["loaded_at"] = 0.0
+    fhir_panel.invalidate()
     await fhir_panel.ensure_loaded(fhir)
     return fhir_panel.status()
 
