@@ -1,0 +1,22 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p2-medrec",
+  "intent": "order",
+  "for": {
+    "reference": "Patient/44086"
+  },
+  "authoredOn": "2026-09-18T22:26:02Z",
+  "status": "completed",
+  "code": {
+    "text": "Medication reconciliation"
+  },
+  "description": "Done by pharmacy",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

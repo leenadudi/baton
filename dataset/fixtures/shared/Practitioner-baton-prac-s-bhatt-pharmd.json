@@ -1,0 +1,17 @@
+{
+  "resourceType": "Practitioner",
+  "id": "baton-prac-s-bhatt-pharmd",
+  "name": [
+    {
+      "text": "S. Bhatt, PharmD"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

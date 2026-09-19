@@ -1,0 +1,46 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "baton-p4-note-1",
+  "status": "current",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "34109-9",
+        "display": "Note"
+      }
+    ]
+  },
+  "category": [
+    {
+      "text": "Dietitian"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/48900"
+  },
+  "date": "2026-09-19T02:26:02Z",
+  "author": [
+    {
+      "reference": "Practitioner/baton-prac-m-okoye-rd",
+      "display": "M. Okoye, RD"
+    }
+  ],
+  "description": "Baton demo note",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "data": "Q2FyYm9oeWRyYXRlLWNvbnNpc3RlbnQgZGlldC4gUmV2aWV3ZWQgbWVhbCB0aW1pbmcgd2l0aCBpbnN1bGluLg=="
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

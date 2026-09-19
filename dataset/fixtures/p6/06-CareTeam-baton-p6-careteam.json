@@ -1,0 +1,29 @@
+{
+  "resourceType": "CareTeam",
+  "id": "baton-p6-careteam",
+  "status": "active",
+  "subject": {
+    "reference": "Patient/43825"
+  },
+  "participant": [
+    {
+      "role": [
+        {
+          "text": "Hospitalist"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-dr-okafor",
+        "display": "Dr. Okafor"
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

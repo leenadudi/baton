@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p4-blocker-b1",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Prior authorization"
+  },
+  "description": "Continuous glucose monitor prior authorization",
+  "for": {
+    "reference": "Patient/48900"
+  },
+  "authoredOn": "2026-09-17T18:26:02Z",
+  "owner": {
+    "display": "Payer"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

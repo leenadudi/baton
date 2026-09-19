@@ -1,0 +1,25 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "baton-p6-consult-1",
+  "status": "active",
+  "intent": "order",
+  "code": {
+    "text": "Hospitalist consult"
+  },
+  "subject": {
+    "reference": "Patient/43825"
+  },
+  "authoredOn": "2026-09-17T22:26:02Z",
+  "requester": {
+    "reference": "Practitioner/baton-prac-dr-okafor",
+    "display": "Dr. Okafor"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

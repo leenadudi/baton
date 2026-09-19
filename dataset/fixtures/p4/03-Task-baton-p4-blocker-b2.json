@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p4-blocker-b2",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Patient education"
+  },
+  "description": "Insulin pen teaching not completed",
+  "for": {
+    "reference": "Patient/48900"
+  },
+  "authoredOn": "2026-09-19T12:26:02Z",
+  "owner": {
+    "display": "Nursing"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

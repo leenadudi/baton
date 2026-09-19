@@ -1,0 +1,21 @@
+{
+  "resourceType": "PractitionerRole",
+  "id": "baton-role-dietitian",
+  "practitioner": {
+    "reference": "Practitioner/baton-prac-m-okoye-rd",
+    "display": "M. Okoye, RD"
+  },
+  "code": [
+    {
+      "text": "Dietitian"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}
