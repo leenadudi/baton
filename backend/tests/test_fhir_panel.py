@@ -101,9 +101,11 @@ def fresh_cache(monkeypatch):
 class FakeFhirClient:
     """Serves fixture JSON from dataset/fixtures/<pid>/ for every persona."""
 
-    def __init__(self, drop_docrefs_for: str | None = None):
+    def __init__(self, drop_docrefs_for: str | None = None,
+                 drop: dict[str, set] | None = None):
         self.search_calls = 0
         self.drop_docrefs_for = drop_docrefs_for
+        self.drop = drop or {}
         self._by_persona = {}
         fixtures_root = REPO_ROOT / "dataset" / "fixtures"
         demo_map = json.loads(
@@ -127,6 +129,8 @@ class FakeFhirClient:
         pid, by_type = self._by_persona[params["patient"]]
         if resource_type == "DocumentReference" and pid == self.drop_docrefs_for:
             return []
+        if resource_type in self.drop.get(pid, set()):
+            return []
         return by_type.get(resource_type, [])
 
 
@@ -142,6 +146,12 @@ def test_invalidate_throttle(fresh_cache):
 def test_incomplete_fixtures_raise(fresh_cache):
     fake = FakeFhirClient(drop_docrefs_for="p1")
     with pytest.raises(RuntimeError, match="incomplete fixtures for p1"):
+        asyncio.run(fhir_panel.load_fhir_patients(fake))
+
+
+def test_incomplete_fixtures_handoff(fresh_cache):
+    fake = FakeFhirClient(drop={"p1": {"Consent"}})
+    with pytest.raises(RuntimeError, match="incomplete fixtures for p1: missing handoff.codeStatus"):
         asyncio.run(fhir_panel.load_fhir_patients(fake))
 
 

@@ -195,14 +195,22 @@ async def load_fhir_patients(fhir: FhirClient) -> list[dict]:
             for dr in docrefs
         ))
         demo = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == pid)
-        blocker_tasks = [t for t in tasks if t.get("status") != "completed"
-                         and (t.get("code") or {}).get("text") not in NON_BLOCKER_CODES]
-        if len(docrefs) < len(demo["notes"]) or len(blocker_tasks) < len(demo["blockers"]):
+        built = build_patient_from_chart(pid, overrides, patient, docrefs,
+                                         tasks, consents, allergies, now)
+        missing = []
+        if len(built["notes"]) < len(demo["notes"]):
+            missing.append(f"notes {len(built['notes'])}/{len(demo['notes'])}")
+        if len(built["blockers"]) < len(demo["blockers"]):
+            missing.append(f"blockers {len(built['blockers'])}/{len(demo['blockers'])}")
+        if len(built["pending"]) < len(demo["pending"]):
+            missing.append(f"pending {len(built['pending'])}/{len(demo['pending'])}")
+        for key, expected in demo["handoff"].items():
+            if expected and not built["handoff"].get(key):
+                missing.append(f"handoff.{key}")
+        if missing:
             raise RuntimeError(
-                f"incomplete fixtures for {pid}: {len(docrefs)}/{len(demo['notes'])} "
-                f"notes, {len(blocker_tasks)}/{len(demo['blockers'])} blockers")
-        out.append(build_patient_from_chart(pid, overrides, patient, docrefs,
-                                            tasks, consents, allergies, now))
+                f"incomplete fixtures for {pid}: missing {', '.join(missing)}")
+        out.append(built)
     return out
 
 
