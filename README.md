@@ -10,8 +10,6 @@ Three flag types:
 
 Baton reads the chart; it does not diagnose or recommend treatment.
 
-Built for HackMIT 2026, Healthcare track: *"a coordination or operations problem rather than diagnosis — something like helping care teams identify conflicting instructions, incomplete handoffs, or unresolved administrative blockers."*
-
 ## How it reads the chart
 
 Standard FHIR resources — no custom data model:
@@ -62,18 +60,3 @@ npm run dev
 ```
 
 Open the URL Vite prints (normally http://localhost:5173). The UI calls the API at http://localhost:8000; interactive API documentation is available at http://localhost:8000/docs. The standalone prototype is served at http://localhost:5173/prototype.html.
-
-## Workstreams
-
-Tracked as GitHub issues — see the [issue tracker](https://github.com/leenadudi/baton/issues) for the full checklist per item.
-
-| Area | Issues |
-|---|---|
-| API contract & FHIR data model | #1, #7 |
-| Frontend / design | #2 |
-| ML/data — OpenAI extraction pipeline, test data (Synthea → HAPI FHIR) | #3, #9 |
-| Backend — FHIR client, panel view, CDS Hooks / SMART on FHIR launch | #4, #8 |
-| Shift-timing framing, write-back scope, pitch positioning | #10, #11, #12 |
-| Stretch: scoped Devin task | #6 |
-
-Issue #5 (Dropbox as the data source) is closed — superseded by the FHIR-native approach, which is also part of the pitch against Epic/Oracle Health's built-in (but empty) handoff forms.
