@@ -11,3 +11,7 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+
+# Synthea checkout and generated data
+.synthea/
+dataset/synthea/
