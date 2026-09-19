@@ -1,0 +1,17 @@
+{
+  "resourceType": "Practitioner",
+  "id": "baton-prac-t-nguyen-rn",
+  "name": [
+    {
+      "text": "T. Nguyen, RN"
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

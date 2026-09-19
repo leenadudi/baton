@@ -1,0 +1,25 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p2-followup",
+  "intent": "order",
+  "for": {
+    "reference": "Patient/44086"
+  },
+  "authoredOn": "2026-09-18T22:26:02Z",
+  "status": "accepted",
+  "code": {
+    "text": "Follow-up owner"
+  },
+  "description": "Cardiology clinic",
+  "owner": {
+    "display": "Cardiology clinic"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

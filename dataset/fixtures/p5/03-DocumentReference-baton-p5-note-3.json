@@ -1,0 +1,46 @@
+{
+  "resourceType": "DocumentReference",
+  "id": "baton-p5-note-3",
+  "status": "current",
+  "type": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "34109-9",
+        "display": "Note"
+      }
+    ]
+  },
+  "category": [
+    {
+      "text": "PT"
+    }
+  ],
+  "subject": {
+    "reference": "Patient/44970"
+  },
+  "date": "2026-09-19T15:26:02Z",
+  "author": [
+    {
+      "reference": "Practitioner/baton-prac-j-lindqvist-pt",
+      "display": "J. Lindqvist, PT"
+    }
+  ],
+  "description": "Baton demo note",
+  "content": [
+    {
+      "attachment": {
+        "contentType": "text/plain",
+        "data": "TmVlZHMgc3RhbmRieSBhc3Npc3QgZm9yIHRyYW5zZmVycy4gUmVjb21tZW5kIFNORjsgbm90IHNhZmUgYWxvbmUgYXQgaG9tZS4="
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

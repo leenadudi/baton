@@ -1,0 +1,51 @@
+{
+  "resourceType": "CareTeam",
+  "id": "baton-p2-careteam",
+  "status": "active",
+  "subject": {
+    "reference": "Patient/44086"
+  },
+  "participant": [
+    {
+      "role": [
+        {
+          "text": "Cardiology"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-dr-shah",
+        "display": "Dr. Shah"
+      }
+    },
+    {
+      "role": [
+        {
+          "text": "Night Resident"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-dr-alvarez",
+        "display": "Dr. Alvarez"
+      }
+    },
+    {
+      "role": [
+        {
+          "text": "Dietitian"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-m-okoye-rd",
+        "display": "M. Okoye, RD"
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

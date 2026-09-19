@@ -1,0 +1,22 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p4-pending-1",
+  "status": "requested",
+  "intent": "order",
+  "code": {
+    "text": "Pending result"
+  },
+  "description": "HbA1c",
+  "for": {
+    "reference": "Patient/48900"
+  },
+  "authoredOn": "2026-09-19T16:26:02Z",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

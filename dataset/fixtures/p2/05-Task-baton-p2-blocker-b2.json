@@ -1,0 +1,26 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p2-blocker-b2",
+  "status": "requested",
+  "intent": "order",
+  "priority": "urgent",
+  "code": {
+    "text": "Patient education"
+  },
+  "description": "Diuretic teaching not completed",
+  "for": {
+    "reference": "Patient/44086"
+  },
+  "authoredOn": "2026-09-19T02:26:02Z",
+  "owner": {
+    "display": "Nursing"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

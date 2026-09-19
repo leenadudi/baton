@@ -1,0 +1,25 @@
+{
+  "resourceType": "Task",
+  "id": "baton-p1-pending-1",
+  "status": "requested",
+  "intent": "order",
+  "code": {
+    "text": "Pending result"
+  },
+  "description": "Repeat hemoglobin",
+  "for": {
+    "reference": "Patient/42157"
+  },
+  "authoredOn": "2026-09-19T16:26:02Z",
+  "owner": {
+    "display": "Night Resident"
+  },
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

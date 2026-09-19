@@ -1,0 +1,27 @@
+{
+  "resourceType": "AllergyIntolerance",
+  "id": "baton-p1-allergy-1",
+  "clinicalStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+        "code": "active"
+      }
+    ]
+  },
+  "code": {
+    "text": "Penicillin (rash)"
+  },
+  "patient": {
+    "reference": "Patient/42157"
+  },
+  "recordedDate": "2026-09-16T22:26:02Z",
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

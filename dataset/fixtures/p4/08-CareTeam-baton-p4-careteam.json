@@ -1,0 +1,29 @@
+{
+  "resourceType": "CareTeam",
+  "id": "baton-p4-careteam",
+  "status": "active",
+  "subject": {
+    "reference": "Patient/48900"
+  },
+  "participant": [
+    {
+      "role": [
+        {
+          "text": "Dietitian"
+        }
+      ],
+      "member": {
+        "reference": "Practitioner/baton-prac-m-okoye-rd",
+        "display": "M. Okoye, RD"
+      }
+    }
+  ],
+  "meta": {
+    "tag": [
+      {
+        "system": "https://github.com/leenadudi/baton",
+        "code": "demo-fixture"
+      }
+    ]
+  }
+}

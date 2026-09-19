@@ -86,6 +86,28 @@ Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicit
 - `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
 - `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
 
+### Demo fixtures
+
+The six PRD personas (Margaret A., Robert C., …) are loaded onto the mapped
+patients in `dataset/demo_patients.json` — notes as `DocumentReference`,
+blockers/pending/owners as `Task`, code status as `Consent`, allergies as
+`AllergyIntolerance`, family contact on `Patient.contact`. Persona content is
+generated from `backend/app/demo_patients.py`, so fixtures and the mock data
+can never drift.
+
+Every Baton-authored resource carries `meta.tag` `{system:
+"https://github.com/leenadudi/baton", code: "demo-fixture"}` — readers should
+filter on it (or the `baton-` id prefix) since public HAPI refuses to delete
+referenced Synthea resources.
+
+Reload after a public-HAPI wipe (idempotent — fixed `baton-*` ids via PUT):
+
+```sh
+python scripts/load_fixtures.py --base-url https://hapi.fhir.org/baseR4
+# or just regenerate the JSON under dataset/fixtures/ without a server:
+python scripts/load_fixtures.py --dump-only
+```
+
 To use a local server instead of public HAPI, run HAPI in docker and point `FHIR_BASE_URL` (and `--base-url`) at it:
 
 ```sh
