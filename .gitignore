@@ -1,0 +1,13 @@
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+
+# JavaScript
+frontend/node_modules/
+frontend/dist/
+
+# Local environment files
+.env
+.env.*
+!.env.example
