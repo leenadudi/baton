@@ -60,3 +60,36 @@ npm run dev
 ```
 
 Open the URL Vite prints (normally http://localhost:5173). The UI calls the API at http://localhost:8000; interactive API documentation is available at http://localhost:8000/docs. The standalone prototype is served at http://localhost:5173/prototype.html.
+
+## FHIR data
+
+Baton reads from any FHIR R4 server, selected with `FHIR_BASE_URL` (default: the public HAPI server `https://hapi.fhir.org/baseR4`).
+
+Generate synthetic charts with Synthea (cloned into `.synthea/` on first run; requires Java 17):
+
+```sh
+scripts/generate_synthea.sh 20        # argument = patient count; output in dataset/synthea/
+```
+
+Load the bundles into the server and record the server-assigned patient ids:
+
+```sh
+python scripts/load_fhir.py --bundles dataset/synthea \
+    --base-url https://hapi.fhir.org/baseR4
+# writes dataset/patient_ids.json; --base-url defaults to $FHIR_BASE_URL,
+# then to public HAPI
+```
+
+Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). API routes:
+
+- `GET /fhir/status` — FHIR base URL and server `fhirVersion`
+- `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
+- `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
+
+To use a local server instead of public HAPI, run HAPI in docker and point `FHIR_BASE_URL` (and `--base-url`) at it:
+
+```sh
+docker run -d --name hapi -p 8080:8080 hapiproject/hapi:latest
+# wait until curl http://localhost:8080/fhir/metadata returns 200 (~1-2 min)
+export FHIR_BASE_URL=http://localhost:8080/fhir
+```
