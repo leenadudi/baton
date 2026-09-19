@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baton: care team coordination</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eaeff2; --surface:#ffffff; --surface-2:#f3f6f8; --ink:#0f1f2e; --ink-2:#4b5d6b; --line:#d3dce3;
+  --conflict:#b42318; --conflict-bg:#fdeceb;
+  --handoff:#9a5b00; --handoff-bg:#fff2d9;
+  --blocker:#175cd3; --blocker-bg:#e6efff;
+  --ok:#1e7a46; --ok-bg:#def3e6;
+  --focus:#175cd3;
+  --head:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b141c; --surface:#122230; --surface-2:#0f1d29; --ink:#e8eff4; --ink-2:#9db0be; --line:#26394a;
+    --conflict:#ff8a80; --conflict-bg:#3a1714;
+    --handoff:#f5b74e; --handoff-bg:#372606;
+    --blocker:#7fb0ff; --blocker-bg:#10284a;
+    --ok:#6fd39a; --ok-bg:#12341f;
+    --focus:#7fb0ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b141c; --surface:#122230; --surface-2:#0f1d29; --ink:#e8eff4; --ink-2:#9db0be; --line:#26394a;
+  --conflict:#ff8a80; --conflict-bg:#3a1714;
+  --handoff:#f5b74e; --handoff-bg:#372606;
+  --blocker:#7fb0ff; --blocker-bg:#10284a;
+  --ok:#6fd39a; --ok-bg:#12341f;
+  --focus:#7fb0ff;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+button,select,input,textarea{font:inherit;color:inherit;}
+button{cursor:pointer;}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px;}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 20px 60px;}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:14px;justify-content:space-between;margin-bottom:6px;}
+.brand{display:flex;align-items:center;gap:12px;}
+.mark{width:44px;height:44px;flex:none;}
+h1{font-family:var(--head);font-weight:700;font-size:30px;line-height:1.05;margin:0;letter-spacing:-0.01em;}
+.tag{color:var(--ink-2);font-size:14px;margin-top:2px;}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--ink-2);}
+.pill b{color:var(--ink);font-weight:600;}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:500;}
+.btn:hover{border-color:var(--ink-2);}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.btn.primary:hover{opacity:.9;}
+.btn.small{padding:5px 10px;font-size:13px;border-radius:8px;}
+.btn.ghost{background:transparent;}
+.intro{max-width:74ch;color:var(--ink-2);margin:10px 0 14px;}
+details.how{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:18px;}
+details.how summary{cursor:pointer;font-weight:500;}
+details.how ul{margin:8px 0 2px;padding-left:20px;color:var(--ink-2);max-width:90ch;}
+details.how li{margin:4px 0;}
+
+/* summary tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;border-top:4px solid var(--line);}
+.tile .n{font-family:var(--head);font-size:32px;font-weight:700;line-height:1;}
+.tile .l{color:var(--ink-2);font-size:13px;margin-top:6px;}
+.tile.t-conflict{border-top-color:var(--conflict);} .tile.t-conflict .n{color:var(--conflict);}
+.tile.t-handoff{border-top-color:var(--handoff);} .tile.t-handoff .n{color:var(--handoff);}
+.tile.t-blocker{border-top-color:var(--blocker);} .tile.t-blocker .n{color:var(--blocker);}
+.tile.t-warn{border-top-color:var(--ink);}
+
+/* layout */
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:20px;align-items:start;}
+.list{display:flex;flex-direction:column;gap:10px;position:sticky;top:12px;}
+.list h2{font-family:var(--head);font-size:17px;margin:0 0 2px;}
+.pt{display:block;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+.pt:hover{border-color:var(--ink-2);}
+.pt.sel{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);}
+.pt .row1{display:flex;align-items:baseline;gap:8px;}
+.pt .room{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);padding:0 6px;border-radius:5px;}
+.pt .name{font-weight:600;}
+.pt .age{color:var(--ink-2);font-size:13px;margin-left:auto;}
+.pt .dx{display:block;color:var(--ink-2);font-size:13px;margin:4px 0 8px;}
+.pt .row2{display:flex;align-items:center;gap:8px;justify-content:space-between;}
+.dch{font-size:12.5px;font-weight:500;padding:2px 8px;border-radius:999px;}
+.dch.risk{background:var(--conflict-bg);color:var(--conflict);}
+.dch.watch{background:var(--handoff-bg);color:var(--handoff);}
+.dch.ready{background:var(--ok-bg);color:var(--ok);}
+.cnts{display:flex;gap:5px;}
+.cnt{font-style:normal;font-family:var(--mono);font-size:12px;min-width:24px;text-align:center;padding:1px 6px;border-radius:6px;}
+.cnt.c{background:var(--conflict-bg);color:var(--conflict);}
+.cnt.h{background:var(--handoff-bg);color:var(--handoff);}
+.cnt.b{background:var(--blocker-bg);color:var(--blocker);}
+.cnt.z{background:var(--surface-2);color:var(--ink-2);}
+.bar{height:5px;background:var(--surface-2);border-radius:99px;margin-top:9px;overflow:hidden;}
+.bar span{display:block;height:100%;background:var(--conflict);border-radius:99px;}
+
+/* detail */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;}
+.panel h2,.panel h3{font-family:var(--head);margin:0;}
+.dhead{display:flex;flex-wrap:wrap;gap:10px 18px;justify-content:space-between;align-items:flex-start;}
+.dhead h2{font-size:26px;line-height:1.1;}
+.dhead .sub{color:var(--ink-2);margin-top:4px;}
+.meter{min-width:200px;}
+.meter .lab{font-size:13px;color:var(--ink-2);display:flex;justify-content:space-between;}
+.meter .track{height:8px;background:var(--surface-2);border:1px solid var(--line);border-radius:99px;margin-top:5px;overflow:hidden;}
+.meter .track span{display:block;height:100%;background:var(--ok);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:14px;}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:0 0 10px;gap:10px;flex-wrap:wrap;}
+.sec-h h3{font-size:18px;}
+.sec-h .hint{color:var(--ink-2);font-size:13px;}
+
+.card{border:1px solid var(--line);border-left-width:6px;border-radius:12px;padding:14px 16px;margin-bottom:12px;background:var(--surface);}
+.card.conflict{border-left-color:var(--conflict);}
+.card.handoff{border-left-color:var(--handoff);}
+.card.blocker{border-left-color:var(--blocker);}
+.card .ct{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;}
+.badge{font-size:12.5px;font-weight:600;padding:2px 9px;border-radius:6px;}
+.badge.conflict{background:var(--conflict-bg);color:var(--conflict);}
+.badge.handoff{background:var(--handoff-bg);color:var(--handoff);}
+.badge.blocker{background:var(--blocker-bg);color:var(--blocker);}
+.sev{font-size:12.5px;color:var(--ink-2);}
+.sev::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:var(--ink-2);}
+.sev.high::before{background:var(--conflict);} .sev.med::before{background:var(--handoff);} .sev.low::before{background:var(--ok);}
+.card h4{margin:0 0 4px;font-size:16.5px;font-weight:600;}
+.card .why{color:var(--ink-2);font-size:14px;margin:0 0 10px;max-width:80ch;}
+.own{margin-left:auto;border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:4px 8px;font-size:13px;}
+.own.un{border-color:var(--handoff);background:var(--handoff-bg);color:var(--handoff);}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;}
+.opt{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2);}
+.opt .oh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;}
+.opt .val{font-weight:600;}
+.opt blockquote{margin:6px 0 0;padding:0 0 0 10px;border-left:3px solid var(--line);font-size:14px;}
+.opt .who{font-size:12.5px;color:var(--ink-2);}
+.row-act{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.row-act input,.row-act select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;min-width:180px;flex:1 1 200px;max-width:340px;}
+.esc{font-size:12.5px;font-weight:600;color:var(--blocker);background:var(--blocker-bg);padding:2px 8px;border-radius:6px;}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--ink-2);}
+.empty b{display:block;color:var(--ok);font-size:16px;margin-bottom:2px;}
+
+.hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px;}
+.hf{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface-2);}
+.hf .ic{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;margin-top:1px;}
+.hf.ok .ic{background:var(--ok-bg);color:var(--ok);}
+.hf.no .ic{background:var(--handoff-bg);color:var(--handoff);}
+.hf .k{font-size:13px;color:var(--ink-2);}
+.hf .v{font-size:14.5px;font-weight:500;}
+
+.note{border-top:1px solid var(--line);padding:12px 0;}
+.note:first-child{border-top:0;padding-top:0;}
+.note .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-2);}
+.role{font-weight:600;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);padding:0 8px;border-radius:6px;}
+.note .txt{margin:4px 0 6px;max-width:80ch;}
+.tg{font-family:var(--mono);font-size:12px;border:1px solid var(--line);padding:1px 7px;border-radius:6px;background:var(--surface-2);margin-right:6px;}
+.tg.hot{border-color:var(--conflict);background:var(--conflict-bg);color:var(--conflict);}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:10px;}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-2);}
+.form select,.form input,.form textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;color:var(--ink);}
+.form .wide{grid-column:1/-1;}
+.log{margin:0;padding:0;list-style:none;font-size:14px;}
+.log li{padding:6px 0;border-top:1px solid var(--line);color:var(--ink-2);}
+.log li:first-child{border-top:0;}
+.log time{font-family:var(--mono);font-size:12px;margin-right:8px;}
+
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(6,14,20,.6);display:none;align-items:flex-start;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 24px;z-index:20;overflow:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:16px;max-width:820px;width:100%;padding:20px;}
+.modal h2{font-family:var(--head);margin:0 0 4px;font-size:22px;}
+.modal textarea{width:100%;min-height:340px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface-2);font-family:var(--mono);font-size:13px;line-height:1.5;resize:vertical;}
+.modal .row-act{margin-top:12px;justify-content:flex-end;}
+.foot{color:var(--ink-2);font-size:13px;margin-top:24px;max-width:90ch;}
+
+@media (max-width: 900px){
+  .grid{grid-template-columns:1fr;}
+  .list{position:static;flex-direction:row;overflow-x:auto;padding-bottom:6px;gap:10px;}
+  .list h2{display:none;}
+  .pt{min-width:250px;width:250px;flex:none;}
+}
+@media (max-width: 520px){
+  .wrap{padding:14px 12px 48px;}
+  h1{font-size:26px;}
+  .own{margin-left:0;}
+}
+@media (prefers-reduced-motion: no-preference){
+  .card{animation:pop .22s ease-out;}
+  @keyframes pop{from{opacity:.4;transform:translateY(4px);}to{opacity:1;transform:none;}}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 44 44" aria-hidden="true">
+        <rect width="44" height="44" rx="11" fill="var(--ink)"/>
+        <circle cx="12" cy="22" r="5" fill="var(--bg)"/>
+        <rect x="17" y="19.5" width="12" height="5" rx="2.5" fill="var(--bg)"/>
+        <circle cx="32" cy="22" r="5" fill="none" stroke="var(--bg)" stroke-width="2.5" stroke-dasharray="3.2 2.6"/>
+      </svg>
+      <div>
+        <h1>Baton</h1>
+        <div class="tag">Find what falls between care team members before the patient does</div>
+      </div>
+    </div>
+    <div class="actions">
+      <span class="pill"><b>4 West</b> medical-surgical unit</span>
+      <span class="pill">Synthetic data, no PHI</span>
+      <button class="btn primary" data-action="brief">Shift brief</button>
+      <button class="btn ghost" data-action="reset">Reset demo</button>
+    </div>
+  </header>
+
+  <p class="intro">Baton reads the trail of orders, notes, and tasks around each patient and flags three kinds of coordination failure: teams giving conflicting instructions, handoffs with missing pieces, and administrative tasks stuck with nobody moving them. It does not diagnose or recommend treatment.</p>
+
+  <details class="how">
+    <summary>How Baton decides what to flag</summary>
+    <ul>
+      <li><b>Conflicting instructions:</b> each note can carry a structured instruction (for example, Diet: NPO). If the latest instruction from two or more roles on the same topic disagree, Baton flags it. Choosing a source of truth records a reconciling decision, and older instructions stop counting.</li>
+      <li><b>Incomplete handoffs:</b> required handoff fields (code status, allergies, family contact, follow-up owner, medication reconciliation) that are empty, and pending results that nobody owns.</li>
+      <li><b>Administrative blockers:</b> authorizations, referrals, equipment, teaching, and transport still open. They rank as high when they block a discharge due within 24 hours or have waited 24 hours or more.</li>
+      <li><b>Ownership:</b> every issue can be assigned to a role. Unassigned issues are counted, because an issue nobody owns is how things get dropped.</li>
+      <li>This demo uses a rules engine on structured tags. A production version would use a language model to pull the same structured instructions out of free-text notes and orders.</li>
+    </ul>
+  </details>
+
+  <section class="tiles" id="tiles" aria-label="Unit summary"></section>
+
+  <div class="grid">
+    <nav class="list" id="list" aria-label="Patients"></nav>
+    <main id="detail"></main>
+  </div>
+
+  <p class="foot">All patients, notes, and organizations in this demo are invented. Baton is a coordination aid and does not replace clinical judgment or hospital policy.</p>
+</div>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovt">
+  <div class="modal">
+    <h2 id="ovt">Shift handoff brief</h2>
+    <div class="tag">Open issues, most urgent first. Copy it into your handoff tool or read it aloud at huddle.</div>
+    <textarea id="brief" readonly></textarea>
+    <div class="row-act">
+      <span id="copied" class="tag" aria-live="polite"></span>
+      <button class="btn" data-action="copy">Copy brief</button>
+      <button class="btn primary" data-action="closebrief">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- reference data ---------- */
+var ROLES=["Hospitalist","Night Resident","Nursing","Pharmacy","PT","OT","Case Management","Cardiology","Orthopedics","Dietitian","Infectious Disease"];
+var OWNERS=["Charge RN","Hospitalist","Case Management","Pharmacy","Social Work","PT/OT","Unit Clerk"];
+var TOPICS={
+  anticoagulation:{label:"Anticoagulation",values:["continue","hold"],sev:"high"},
+  weight_bearing:{label:"Weight-bearing",values:["full","partial","non-weight-bearing"],sev:"high"},
+  destination:{label:"Discharge destination",values:["home","home with home health","SNF","inpatient rehab"],sev:"high"},
+  diet:{label:"Diet",values:["regular","cardiac 2g Na","carb-consistent","NPO","clear liquids"],sev:"med"},
+  fluids:{label:"Fluids",values:["restrict","encourage"],sev:"med"},
+  isolation:{label:"Isolation",values:["contact precautions","none"],sev:"med"}
+};
+var FIELDS=[
+  {key:"codeStatus",label:"Code status",sev:"high",why:"Oncoming staff cannot act safely in an emergency without it.",ph:"e.g. Full code"},
+  {key:"allergies",label:"Allergies",sev:"high",why:"Allergy status is not documented in the handoff, so orders may be placed without it.",ph:"e.g. NKDA, or drug and reaction"},
+  {key:"followUpOwner",label:"Post-discharge follow-up owner",sev:"med",why:"Nobody is named to see this patient after discharge, so follow-up is likely to slip.",ph:"e.g. PCP Dr. Hale"},
+  {key:"medRec",label:"Medication reconciliation",sev:"med",why:"Discharge medications have not been reconciled against home medications.",ph:"e.g. Done by pharmacy"},
+  {key:"familyContact",label:"Family or surrogate contact",sev:"low",why:"No one is listed to call if the patient's status changes or a plan needs consent.",ph:"e.g. Daughter, on file"}
+];
+var TYPE_LABEL={conflict:"Conflicting instructions",handoff:"Incomplete handoff",blocker:"Administrative blocker"};
+var SEV_LABEL={high:"High priority",med:"Medium priority",low:"Low priority"};
+var W={high:3,med:2,low:1};
+
+var PATIENTS=[
+ {id:"p1",name:"Margaret A.",age:78,room:"412",dx:"Hip fracture, ORIF post-op day 2",dischargeInH:30,
+  handoff:{codeStatus:"Full code",allergies:"Penicillin (rash)",familyContact:"Daughter, on file",followUpOwner:"",medRec:"Done by pharmacy"},
+  pending:[{name:"Repeat hemoglobin",owner:"Night Resident"},{name:"Type and screen",owner:""}],
+  blockers:[
+    {id:"b1",label:"SNF insurance authorization",cat:"Prior authorization",waitingOn:"Payer",ageH:31,blocks:true},
+    {id:"b2",label:"Ambulance transport not booked",cat:"Transport",waitingOn:"Case Management",ageH:6,blocks:true}],
+  notes:[
+   {role:"Orthopedics",author:"Dr. Reyes",h:40,text:"Partial weight-bearing on the operative leg for 6 weeks. Toe-touch, up to 50%.",tags:[["weight_bearing","partial"]]},
+   {role:"Hospitalist",author:"Dr. Okafor",h:30,text:"Continue enoxaparin 40 mg daily for VTE prophylaxis after ORIF.",tags:[["anticoagulation","continue"]]},
+   {role:"PT",author:"J. Lindqvist, PT",h:18,text:"Tolerated gait training well. Progressed to full weight-bearing as tolerated per protocol.",tags:[["weight_bearing","full"]]},
+   {role:"Case Management",author:"T. Nguyen, RN",h:12,text:"Plan is SNF for rehab. Authorization submitted to the payer.",tags:[["destination","SNF"]]},
+   {role:"Pharmacy",author:"S. Bhatt, PharmD",h:9,text:"Hgb 8.1, down from 9.6. Recommend holding enoxaparin until repeat Hgb is resulted.",tags:[["anticoagulation","hold"]]},
+   {role:"Nursing",author:"K. Adeyemi, RN",h:4,text:"Daughter says the family expects her to come home Friday.",tags:[["destination","home"]]}
+  ]},
+ {id:"p2",name:"Robert C.",age:64,room:"407",dx:"Heart failure exacerbation, day 3",dischargeInH:20,
+  handoff:{codeStatus:"",allergies:"NKDA",familyContact:"Wife, Linda",followUpOwner:"Cardiology clinic",medRec:"Done by pharmacy"},
+  pending:[],
+  blockers:[
+    {id:"b1",label:"Home oxygen order not placed",cat:"Equipment (DME)",waitingOn:"Hospitalist",ageH:14,blocks:true},
+    {id:"b2",label:"Diuretic teaching not completed",cat:"Patient education",waitingOn:"Nursing",ageH:20,blocks:true}],
+  notes:[
+   {role:"Cardiology",author:"Dr. Shah",h:34,text:"Fluid restriction 1.5 L per day. 2 g sodium diet.",tags:[["fluids","restrict"],["diet","cardiac 2g Na"]]},
+   {role:"Night Resident",author:"Dr. Alvarez",h:13,text:"Patient very thirsty overnight. Encourage oral fluids and okay to liberalize the diet.",tags:[["fluids","encourage"],["diet","regular"]]},
+   {role:"Dietitian",author:"M. Okoye, RD",h:8,text:"Started 2 g sodium diet education with patient and wife.",tags:[["diet","cardiac 2g Na"]]}
+  ]},
+ {id:"p3",name:"Priya S.",age:41,room:"305",dx:"Laparoscopic cholecystectomy, post-op day 1",dischargeInH:6,
+  handoff:{codeStatus:"Full code",allergies:"NKDA",familyContact:"",followUpOwner:"Surgery clinic",medRec:"Done by pharmacy"},
+  pending:[],blockers:[],
+  notes:[
+   {role:"Hospitalist",author:"Dr. Okafor",h:10,text:"Advance to regular diet as tolerated. Pain controlled on oral medication.",tags:[["diet","regular"]]}
+  ]},
+ {id:"p4",name:"James O.",age:55,room:"418",dx:"Diabetic ketoacidosis, resolved",dischargeInH:26,
+  handoff:{codeStatus:"Full code",allergies:"Sulfa (hives)",familyContact:"Partner, Sam",followUpOwner:"Endocrinology",medRec:""},
+  pending:[{name:"HbA1c",owner:""}],
+  blockers:[
+    {id:"b1",label:"Continuous glucose monitor prior authorization",cat:"Prior authorization",waitingOn:"Payer",ageH:52,blocks:true},
+    {id:"b2",label:"Insulin pen teaching not completed",cat:"Patient education",waitingOn:"Nursing",ageH:10,blocks:true}],
+  notes:[
+   {role:"Dietitian",author:"M. Okoye, RD",h:20,text:"Carbohydrate-consistent diet. Reviewed meal timing with insulin.",tags:[["diet","carb-consistent"]]}
+  ]},
+ {id:"p5",name:"Elena V.",age:83,room:"421",dx:"Pneumonia, improving on day 4",dischargeInH:44,
+  handoff:{codeStatus:"DNR/DNI",allergies:"",familyContact:"Son, Marcus",followUpOwner:"PCP Dr. Hale",medRec:"Done by pharmacy"},
+  pending:[{name:"Sputum culture",owner:"Hospitalist"}],
+  blockers:[
+    {id:"b1",label:"Home health referral awaiting physician signature",cat:"Referral",waitingOn:"Hospitalist",ageH:21,blocks:true}],
+  notes:[
+   {role:"Infectious Disease",author:"Dr. Wen",h:30,text:"Contact precautions until MRSA screen results.",tags:[["isolation","contact precautions"]]},
+   {role:"Case Management",author:"T. Nguyen, RN",h:10,text:"Plan is home with home health nursing twice weekly.",tags:[["destination","home with home health"]]},
+   {role:"PT",author:"J. Lindqvist, PT",h:7,text:"Needs standby assist for transfers. Recommend SNF; not safe alone at home.",tags:[["destination","SNF"]]},
+   {role:"Nursing",author:"K. Adeyemi, RN",h:5,text:"MRSA screen negative. Precautions lifted and signage removed.",tags:[["isolation","none"]]}
+  ]},
+ {id:"p6",name:"David L.",age:29,room:"310",dx:"Appendectomy, post-op day 1",dischargeInH:3,
+  handoff:{codeStatus:"Full code",allergies:"NKDA",familyContact:"Mother, on file",followUpOwner:"Surgery clinic",medRec:"Done by pharmacy"},
+  pending:[],blockers:[],
+  notes:[
+   {role:"Hospitalist",author:"Dr. Okafor",h:8,text:"Regular diet. Cleared for discharge this afternoon once he has voided.",tags:[["diet","regular"]]}
+  ]}
+];
+PATIENTS.forEach(function(p){
+  p.notes.sort(function(a,b){return b.h-a.h;}).forEach(function(n,i){n.seq=i+1;});
+});
+
+/* ---------- state ---------- */
+var KEY="baton-demo-v1";
+function fresh(){return {added:{},filled:{},cleared:{},escalated:{},pendOwners:{},owners:{},log:{},nextSeq:1000};}
+var state=load();
+function load(){
+  try{var raw=localStorage.getItem(KEY); if(raw){return Object.assign(fresh(),JSON.parse(raw));}}catch(e){}
+  return fresh();
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+var ui={sel:"p1",filter:"all"};
+
+/* ---------- helpers ---------- */
+function $(s){return document.querySelector(s);}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function byId(id){return PATIENTS.filter(function(p){return p.id===id;})[0];}
+function ago(n){
+  if(n.at){var m=Math.round((Date.now()-n.at)/60000); return m<1?"just now":(m<60?m+"m ago":Math.round(m/60)+"h ago");}
+  return n.h+"h ago";
+}
+function logAct(pid,text){(state.log[pid]=state.log[pid]||[]).unshift({at:Date.now(),text:text});}
+function allNotes(p){return p.notes.concat(state.added[p.id]||[]);}
+function tagOf(n,topic){var t=n.tags.filter(function(x){return x[0]===topic;})[0];return t?t[1]:null;}
+
+/* ---------- detection engine ---------- */
+function findConflicts(p){
+  var notes=allNotes(p),out=[];
+  Object.keys(TOPICS).forEach(function(topic){
+    var tn=notes.filter(function(n){return tagOf(n,topic)!==null;});
+    if(!tn.length)return;
+    var barrier=0;
+    tn.forEach(function(n){if(n.reconcile&&n.seq>barrier)barrier=n.seq;});
+    var latest={};
+    tn.filter(function(n){return n.seq>=barrier;}).forEach(function(n){
+      if(!latest[n.role]||n.seq>latest[n.role].seq)latest[n.role]=n;
+    });
+    var vals={};
+    Object.keys(latest).forEach(function(r){var n=latest[r],v=tagOf(n,topic);(vals[v]=vals[v]||[]).push(n);});
+    if(Object.keys(vals).length>1)out.push({topic:topic,vals:vals});
+  });
+  return out;
+}
+function getIssues(p){
+  var S=state,issues=[];
+  findConflicts(p).forEach(function(c){
+    var T=TOPICS[c.topic],vs=Object.keys(c.vals);
+    var sub=[];vs.forEach(function(v){c.vals[v].forEach(function(n){sub.push(n.role+": "+v);});});
+    issues.push({id:p.id+":conflict:"+c.topic,pid:p.id,type:"conflict",sev:T.sev,
+      title:T.label+": "+vs.length+" different instructions are active",
+      sub:sub.join("; "),
+      why:"Both cannot be followed. Until someone picks one, whoever reads the chart next may follow either.",
+      topic:c.topic,vals:c.vals});
+  });
+  FIELDS.forEach(function(f){
+    var v=(S.filled[p.id]||{})[f.key]; if(v===undefined)v=p.handoff[f.key];
+    if(!v){issues.push({id:p.id+":handoff:"+f.key,pid:p.id,type:"handoff",sev:f.sev,
+      title:f.label+" is missing from the handoff",sub:f.why,why:f.why,fix:{kind:"field",key:f.key,ph:f.ph}});}
+  });
+  p.pending.forEach(function(r){
+    var o=S.pendOwners[p.id+"|"+r.name]||r.owner;
+    if(!o){issues.push({id:p.id+":handoff:pend:"+r.name,pid:p.id,type:"handoff",sev:"med",
+      title:"Pending result has no owner: "+r.name,
+      sub:"Result pending, nobody assigned to follow it up",
+      why:"If nobody owns a pending result, it can come back abnormal and go unseen after the patient leaves.",
+      fix:{kind:"pending",name:r.name}});}
+  });
+  p.blockers.forEach(function(b){
+    if((S.cleared[p.id]||{})[b.id])return;
+    var sev="med";
+    if(b.blocks&&(p.dischargeInH<=24||b.ageH>=24))sev="high";
+    else if(!b.blocks&&b.ageH<24)sev="low";
+    issues.push({id:p.id+":blocker:"+b.id,pid:p.id,type:"blocker",sev:sev,
+      title:b.label,
+      sub:"Waiting on "+b.waitingOn+" for "+b.ageH+"h. Discharge target in "+p.dischargeInH+"h.",
+      why:b.cat+(b.blocks?" item that blocks discharge.":" item."),
+      bid:b.id,escalated:!!S.escalated[p.id+"|"+b.id]});
+  });
+  issues.sort(function(a,b){return W[b.sev]-W[a.sev];});
+  return issues;
+}
+function riskOf(is){return is.reduce(function(a,i){return a+W[i.sev];},0);}
+function dischStatus(p,is){
+  if(is.some(function(i){return i.sev==="high";}))return "risk";
+  return is.length?"watch":"ready";
+}
+var DS_LABEL={risk:"At risk",watch:"Watch",ready:"Ready"};
+function handoffProgress(p){
+  var total=FIELDS.length+p.pending.length,done=0;
+  FIELDS.forEach(function(f){var v=(state.filled[p.id]||{})[f.key];if(v===undefined)v=p.handoff[f.key];if(v)done++;});
+  p.pending.forEach(function(r){if(state.pendOwners[p.id+"|"+r.name]||r.owner)done++;});
+  return {done:done,total:total,pct:Math.round(done/total*100)};
+}
+
+/* ---------- rendering ---------- */
+function ownerSel(id){
+  var cur=state.owners[id]||"";
+  return '<select class="own'+(cur?'':' un')+'" data-owner="'+esc(id)+'" aria-label="Owner of this issue"><option value="">Unassigned</option>'+
+    OWNERS.map(function(o){return '<option'+(o===cur?' selected':'')+'>'+o+'</option>';}).join("")+'</select>';
+}
+function issueCard(i,p){
+  var h='<article class="card '+i.type+'"><div class="ct"><span class="badge '+i.type+'">'+TYPE_LABEL[i.type]+'</span><span class="sev '+i.sev+'">'+SEV_LABEL[i.sev]+'</span>'+
+    (i.escalated?'<span class="esc">Escalated</span>':'')+ownerSel(i.id)+'</div>';
+  h+='<h4>'+esc(i.title)+'</h4>';
+  if(i.type==="conflict"){
+    h+='<p class="why">'+esc(i.why)+' Pick the instruction that should stand.</p><div class="opts">';
+    Object.keys(i.vals).forEach(function(v){
+      h+='<div class="opt"><div class="oh"><span class="val">'+esc(v)+'</span><button class="btn small" data-action="adopt" data-pid="'+p.id+'" data-topic="'+i.topic+'" data-value="'+esc(v)+'">Use this</button></div>';
+      i.vals[v].forEach(function(n){
+        h+='<div class="who"><b>'+esc(n.role)+'</b>, '+esc(n.author)+', '+ago(n)+'</div><blockquote>'+esc(n.text)+'</blockquote>';
+      });
+      h+='</div>';
+    });
+    h+='</div>';
+  }else if(i.type==="handoff"){
+    h+='<p class="why">'+esc(i.why)+'</p><div class="row-act">';
+    if(i.fix.kind==="field"){
+      h+='<input type="text" placeholder="'+esc(i.fix.ph)+'" aria-label="Value"><button class="btn small primary" data-action="fill" data-pid="'+p.id+'" data-key="'+i.fix.key+'">Save to handoff</button>';
+    }else{
+      h+='<select aria-label="Result owner"><option value="">Choose owner</option>'+OWNERS.concat(["Night Resident"]).map(function(o){return '<option>'+o+'</option>';}).join("")+'</select><button class="btn small primary" data-action="pend" data-pid="'+p.id+'" data-name="'+esc(i.fix.name)+'">Assign follow-up</button>';
+    }
+    h+='</div>';
+  }else{
+    h+='<p class="why">'+esc(i.sub)+' '+esc(i.why)+'</p><div class="row-act">'+
+      '<button class="btn small primary" data-action="clear" data-pid="'+p.id+'" data-bid="'+i.bid+'">Mark cleared</button>'+
+      (i.escalated?'':'<button class="btn small" data-action="escalate" data-pid="'+p.id+'" data-bid="'+i.bid+'">Escalate</button>')+'</div>';
+  }
+  return h+'</article>';
+}
+function renderTiles(rows){
+  var c=0,h=0,b=0,un=0,risk=0;
+  rows.forEach(function(r){
+    r.is.forEach(function(i){
+      if(i.type==="conflict")c++;else if(i.type==="handoff")h++;else b++;
+      if(!state.owners[i.id])un++;
+    });
+    if(r.p.dischargeInH<=24&&dischStatus(r.p,r.is)==="risk")risk++;
+  });
+  $("#tiles").innerHTML=
+   '<div class="tile t-conflict"><div class="n">'+c+'</div><div class="l">Conflicting instructions</div></div>'+
+   '<div class="tile t-handoff"><div class="n">'+h+'</div><div class="l">Handoff gaps</div></div>'+
+   '<div class="tile t-blocker"><div class="n">'+b+'</div><div class="l">Administrative blockers</div></div>'+
+   '<div class="tile t-warn"><div class="n">'+un+'</div><div class="l">Issues with no owner</div></div>'+
+   '<div class="tile t-warn"><div class="n">'+risk+'</div><div class="l">Discharges due within 24h that are at risk</div></div>';
+}
+function renderList(rows){
+  var sorted=rows.slice().sort(function(a,b){return riskOf(b.is)-riskOf(a.is);});
+  $("#list").innerHTML='<h2>Patients by risk</h2>'+sorted.map(function(r){
+    var p=r.p,is=r.is,st=dischStatus(p,is);
+    var c=is.filter(function(i){return i.type==="conflict";}).length,
+        h=is.filter(function(i){return i.type==="handoff";}).length,
+        b=is.filter(function(i){return i.type==="blocker";}).length;
+    return '<button class="pt'+(p.id===ui.sel?' sel':'')+'" data-action="select" data-id="'+p.id+'" aria-pressed="'+(p.id===ui.sel)+'">'+
+      '<span class="row1"><span class="room">Rm '+p.room+'</span><span class="name">'+esc(p.name)+'</span><span class="age">'+p.age+'</span></span>'+
+      '<span class="dx">'+esc(p.dx)+'</span>'+
+      '<span class="row2"><span class="dch '+st+'">Discharge in '+p.dischargeInH+'h: '+DS_LABEL[st]+'</span>'+
+      '<span class="cnts"><i class="cnt '+(c?'c':'z')+'" title="Conflicts">'+c+'</i><i class="cnt '+(h?'h':'z')+'" title="Handoff gaps">'+h+'</i><i class="cnt '+(b?'b':'z')+'" title="Blockers">'+b+'</i></span></span>'+
+      '<span class="bar"><span style="width:'+Math.min(100,Math.round(riskOf(is)/14*100))+'%"></span></span></button>';
+  }).join("");
+}
+function renderDetail(rows){
+  var r=rows.filter(function(x){return x.p.id===ui.sel;})[0]||rows[0],p=r.p,is=r.is,st=dischStatus(p,is),hp=handoffProgress(p);
+  var hotTopics={};is.forEach(function(i){if(i.type==="conflict")hotTopics[i.topic]=true;});
+  var shown=is.filter(function(i){return ui.filter==="all"||i.type===ui.filter;});
+  var counts={all:is.length,conflict:0,handoff:0,blocker:0};is.forEach(function(i){counts[i.type]++;});
+  var h='<section class="panel"><div class="dhead"><div><h2>'+esc(p.name)+', '+p.age+'</h2><div class="sub">Room '+p.room+'. '+esc(p.dx)+'.</div>'+
+    '<div style="margin-top:8px"><span class="dch '+st+'">Discharge in '+p.dischargeInH+'h: '+DS_LABEL[st]+'</span></div></div>'+
+    '<div class="meter"><div class="lab"><span>Handoff completeness</span><b>'+hp.pct+'%</b></div><div class="track"><span style="width:'+hp.pct+'%"></span></div>'+
+    '<div class="lab" style="margin-top:4px"><span>'+hp.done+' of '+hp.total+' items in place</span></div></div></div></section>';
+
+  h+='<section class="panel"><div class="sec-h"><h3>What needs attention</h3><span class="hint">Highest priority first</span></div><div class="chips" role="group" aria-label="Filter issues">'+
+    [["all","All"],["conflict","Conflicts"],["handoff","Handoff gaps"],["blocker","Blockers"]].map(function(f){
+      return '<button class="chip'+(ui.filter===f[0]?' on':'')+'" data-action="filter" data-f="'+f[0]+'" aria-pressed="'+(ui.filter===f[0])+'">'+f[1]+' ('+counts[f[0]]+')</button>';}).join("")+'</div>';
+  if(shown.length){h+=shown.map(function(i){return issueCard(i,p);}).join("");}
+  else{h+='<div class="empty"><b>'+(is.length?'Nothing in this filter':'No open coordination issues')+'</b>'+(is.length?'Switch filters to see the rest.':'Instructions agree, the handoff is complete, and nothing is stuck.')+'</div>';}
+  h+='</section>';
+
+  h+='<section class="panel"><div class="sec-h"><h3>Handoff checklist</h3><span class="hint">What the next shift will be told</span></div><div class="hgrid">';
+  FIELDS.forEach(function(f){
+    var v=(state.filled[p.id]||{})[f.key];if(v===undefined)v=p.handoff[f.key];
+    h+='<div class="hf '+(v?'ok':'no')+'"><span class="ic" aria-hidden="true">'+(v?'&#10003;':'!')+'</span><div><div class="k">'+f.label+'</div><div class="v">'+(v?esc(v):'Missing')+'</div></div></div>';
+  });
+  p.pending.forEach(function(r2){
+    var o=state.pendOwners[p.id+"|"+r2.name]||r2.owner;
+    h+='<div class="hf '+(o?'ok':'no')+'"><span class="ic" aria-hidden="true">'+(o?'&#10003;':'!')+'</span><div><div class="k">Pending: '+esc(r2.name)+'</div><div class="v">'+(o?'Owner: '+esc(o):'No owner')+'</div></div></div>';
+  });
+  h+='</div></section>';
+
+  var notes=allNotes(p).slice().sort(function(a,b){return b.seq-a.seq;});
+  h+='<section class="panel"><div class="sec-h"><h3>Orders and notes</h3><span class="hint">Newest first. Tags show the instruction Baton read.</span></div>';
+  h+=notes.map(function(n){
+    return '<div class="note"><div class="meta"><span class="role">'+esc(n.role)+'</span><span>'+esc(n.author)+'</span><span>'+ago(n)+'</span></div><div class="txt">'+esc(n.text)+'</div><div>'+
+      n.tags.map(function(t){return '<span class="tg'+(hotTopics[t[0]]?' hot':'')+'">'+esc(TOPICS[t[0]].label)+': '+esc(t[1])+'</span>';}).join("")+(n.reconcile?'<span class="tg">Reconciling decision</span>':'')+'</div></div>';
+  }).join("");
+  h+='<h3 style="margin-top:20px;font-size:16px">Add an instruction</h3><div class="tag">Try it: on David L., add Diet: NPO as Dietitian and watch a conflict appear.</div>'+
+    '<div class="form"><label>From role<select id="nRole">'+ROLES.map(function(x){return '<option>'+x+'</option>';}).join("")+'</select></label>'+
+    '<label>Topic<select id="nTopic"><option value="">Comment only</option>'+Object.keys(TOPICS).map(function(k){return '<option value="'+k+'">'+TOPICS[k].label+'</option>';}).join("")+'</select></label>'+
+    '<label>Instruction<select id="nValue" disabled><option value="">Choose a topic first</option></select></label>'+
+    '<label class="wide">Note (optional)<input id="nText" type="text" placeholder="What did the team say or order?"></label>'+
+    '<div class="wide"><button class="btn primary" data-action="addnote" data-pid="'+p.id+'">Add to chart</button></div></div></section>';
+
+  var lg=state.log[p.id]||[];
+  h+='<section class="panel"><div class="sec-h"><h3>Activity</h3></div>'+(lg.length?'<ul class="log">'+lg.slice(0,12).map(function(e){
+    var d=new Date(e.at);return '<li><time>'+d.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})+'</time>'+esc(e.text)+'</li>';}).join("")+'</ul>':'<div class="tag">Actions taken in Baton will show up here.</div>')+'</section>';
+  $("#detail").innerHTML=h;
+}
+function render(){
+  var rows=PATIENTS.map(function(p){return {p:p,is:getIssues(p)};});
+  renderTiles(rows);renderList(rows);renderDetail(rows);
+}
+
+/* ---------- brief ---------- */
+function briefText(){
+  var all=[];
+  PATIENTS.forEach(function(p){getIssues(p).forEach(function(i){all.push({p:p,i:i});});});
+  all.sort(function(a,b){return W[b.i.sev]-W[a.i.sev]||a.p.dischargeInH-b.p.dischargeInH;});
+  var un=all.filter(function(x){return !state.owners[x.i.id];}).length;
+  var L=["SHIFT HANDOFF BRIEF for 4 West (synthetic data)",all.length+" open coordination issues, "+un+" with no owner.",""];
+  if(!all.length){L.push("Nothing open. Instructions agree, handoffs are complete, no blockers.");}
+  all.slice(0,14).forEach(function(x,k){
+    L.push((k+1)+". ["+x.i.sev.toUpperCase()+"] Rm "+x.p.room+" "+x.p.name+": "+TYPE_LABEL[x.i.type]+". "+x.i.title+".");
+    L.push("   "+x.i.sub);
+    L.push("   Owner: "+(state.owners[x.i.id]||"UNASSIGNED")+"; discharge target in "+x.p.dischargeInH+"h.");
+    L.push("");
+  });
+  if(all.length>14)L.push("+ "+(all.length-14)+" lower-priority items in Baton.");
+  return L.join("\n");
+}
+
+/* ---------- actions ---------- */
+function addNote(pid,n){
+  n.seq=state.nextSeq++;n.at=Date.now();
+  (state.added[pid]=state.added[pid]||[]).push(n);
+}
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-action]");if(!el)return;
+  var a=el.dataset.action,d=el.dataset,p,card;
+  if(a==="select"){ui.sel=d.id;ui.filter="all";render();return;}
+  if(a==="filter"){ui.filter=d.f;render();return;}
+  if(a==="adopt"){
+    p=byId(d.pid);var T=TOPICS[d.topic];
+    addNote(p.id,{role:"Attending decision",author:"Reconciled in Baton",text:"Reconciled "+T.label+": proceed with "+d.value+". Earlier conflicting instructions are superseded.",tags:[[d.topic,d.value]],reconcile:true});
+    logAct(p.id,"Reconciled "+T.label+" to "+d.value);save();render();return;
+  }
+  if(a==="fill"){
+    card=el.closest(".card");var inp=card.querySelector("input"),v=inp.value.trim();
+    if(!v){inp.focus();return;}
+    state.filled[d.pid]=state.filled[d.pid]||{};state.filled[d.pid][d.key]=v;
+    var f=FIELDS.filter(function(x){return x.key===d.key;})[0];
+    logAct(d.pid,"Added "+f.label+" to handoff");save();render();return;
+  }
+  if(a==="pend"){
+    card=el.closest(".card");var sel=card.querySelector("select"),o=sel.value;
+    if(!o){sel.focus();return;}
+    state.pendOwners[d.pid+"|"+d.name]=o;logAct(d.pid,"Assigned "+d.name+" follow-up to "+o);save();render();return;
+  }
+  if(a==="clear"){
+    state.cleared[d.pid]=state.cleared[d.pid]||{};state.cleared[d.pid][d.bid]=true;
+    var b=byId(d.pid).blockers.filter(function(x){return x.id===d.bid;})[0];
+    logAct(d.pid,"Cleared blocker: "+b.label);save();render();return;
+  }
+  if(a==="escalate"){
+    state.escalated[d.pid+"|"+d.bid]=true;
+    var b2=byId(d.pid).blockers.filter(function(x){return x.id===d.bid;})[0];
+    logAct(d.pid,"Escalated blocker: "+b2.label);save();render();return;
+  }
+  if(a==="addnote"){
+    p=byId(d.pid);var role=$("#nRole").value,topic=$("#nTopic").value,val=$("#nValue").value,txt=$("#nText").value.trim();
+    if(topic&&!val){$("#nValue").focus();return;}
+    if(!topic&&!txt){$("#nText").focus();return;}
+    if(!txt)txt=TOPICS[topic].label+": "+val+".";
+    addNote(p.id,{role:role,author:role+" (you)",text:txt,tags:topic?[[topic,val]]:[]});
+    logAct(p.id,"Added "+role+" note"+(topic?" ("+TOPICS[topic].label+": "+val+")":""));save();render();return;
+  }
+  if(a==="brief"){$("#brief").value=briefText();$("#copied").textContent="";$("#ov").classList.add("open");return;}
+  if(a==="closebrief"){$("#ov").classList.remove("open");return;}
+  if(a==="copy"){
+    var ta=$("#brief"),ok=false;
+    try{ta.select();ok=document.execCommand("copy");}catch(err){}
+    if(!ok&&navigator.clipboard){navigator.clipboard.writeText(ta.value).then(function(){$("#copied").textContent="Copied";},function(){$("#copied").textContent="Select the text and copy it manually";});return;}
+    $("#copied").textContent=ok?"Copied":"Select the text and copy it manually";return;
+  }
+  if(a==="reset"){state=fresh();save();ui={sel:"p1",filter:"all"};render();return;}
+});
+document.addEventListener("change",function(e){
+  var t=e.target;
+  if(t.dataset&&t.dataset.owner!==undefined){
+    var id=t.dataset.owner,pid=id.split(":")[0],p=byId(pid),i=getIssues(p).filter(function(x){return x.id===id;})[0];
+    if(t.value){state.owners[id]=t.value;if(i)logAct(pid,"Assigned \""+i.title+"\" to "+t.value);}
+    else{delete state.owners[id];}
+    save();render();return;
+  }
+  if(t.id==="nTopic"){
+    var vs=$("#nValue");
+    if(!t.value){vs.disabled=true;vs.innerHTML='<option value="">Choose a topic first</option>';}
+    else{vs.disabled=false;vs.innerHTML='<option value="">Choose instruction</option>'+TOPICS[t.value].values.map(function(v){return '<option>'+v+'</option>';}).join("");}
+  }
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")$("#ov").classList.remove("open");});
+$("#ov").addEventListener("click",function(e){if(e.target===this)this.classList.remove("open");});
+
+render();
+})();
+</script>
+</body>
+</html>
