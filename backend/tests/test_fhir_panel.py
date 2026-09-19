@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -88,6 +89,83 @@ def test_is_fixture():
     assert not fhir_panel.is_fixture({"id": "12345", "resourceType": "Task"})
     assert not fhir_panel.is_fixture({"id": "x", "meta": {"tag": [
         {"system": "https://github.com/leenadudi/baton", "code": "other"}]}})
+
+
+@pytest.fixture
+def fresh_cache(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    fhir_panel._cache.update(patients=None, loaded_at=0.0, source="demo", error=None)
+    yield
+
+
+class FakeFhirClient:
+    """Serves fixture JSON from dataset/fixtures/<pid>/ for every persona."""
+
+    def __init__(self, drop_docrefs_for: str | None = None):
+        self.search_calls = 0
+        self.drop_docrefs_for = drop_docrefs_for
+        self._by_persona = {}
+        fixtures_root = REPO_ROOT / "dataset" / "fixtures"
+        demo_map = json.loads(
+            (REPO_ROOT / "dataset" / "demo_patients.json").read_text())
+        for pid, ov in demo_map.items():
+            if pid.startswith("_"):
+                continue
+            by_type: dict[str, list] = {}
+            for path in sorted((fixtures_root / pid).glob("*.json")):
+                r = json.loads(path.read_text())
+                by_type.setdefault(r["resourceType"], []).append(r)
+            self._by_persona[ov["fhirPatientId"].split("/", 1)[1]] = (pid, by_type)
+
+    async def get(self, resource_type, id):
+        pid, _ = self._by_persona[id]
+        return {"resourceType": "Patient", "id": id,
+                "contact": [{"name": {"text": "Test contact"}}]}
+
+    async def search(self, resource_type, **params):
+        self.search_calls += 1
+        pid, by_type = self._by_persona[params["patient"]]
+        if resource_type == "DocumentReference" and pid == self.drop_docrefs_for:
+            return []
+        return by_type.get(resource_type, [])
+
+
+def test_invalidate_throttle(fresh_cache):
+    fhir_panel._cache.update(patients=[{"id": "p1"}], loaded_at=time.time(),
+                             source="fhir")
+    assert fhir_panel.invalidate() is False
+    fhir_panel._cache["loaded_at"] = time.time() - fhir_panel.REFRESH_MIN_INTERVAL_S - 1
+    assert fhir_panel.invalidate() is True
+    assert fhir_panel._cache["loaded_at"] == 0.0
+
+
+def test_incomplete_fixtures_raise(fresh_cache):
+    fake = FakeFhirClient(drop_docrefs_for="p1")
+    with pytest.raises(RuntimeError, match="incomplete fixtures for p1"):
+        asyncio.run(fhir_panel.load_fhir_patients(fake))
+
+
+def test_ensure_loaded_single_flight(fresh_cache, monkeypatch):
+    monkeypatch.setenv("PANEL_SOURCE", "fhir")
+    fake = FakeFhirClient()
+
+    async def run_once():
+        fhir_panel._cache["loaded_at"] = 0.0
+        await fhir_panel.ensure_loaded(fake)
+        return fake.search_calls
+
+    baseline = asyncio.run(run_once())
+    assert baseline > 0
+    assert fhir_panel.status()["source"] == "fhir"
+
+    fake.search_calls = 0
+    fhir_panel._cache["loaded_at"] = 0.0
+    asyncio.run(_gather5(fake))
+    assert fake.search_calls == baseline
+
+
+async def _gather5(fake):
+    await asyncio.gather(*[fhir_panel.ensure_loaded(fake) for _ in range(5)])
 
 
 def test_demo_source_returns_demo(monkeypatch):

@@ -252,9 +252,9 @@ async def demo_reset() -> dict:
 
 @app.post("/demo/refresh")
 async def demo_refresh() -> dict:
-    fhir_panel.invalidate()
+    refreshed = fhir_panel.invalidate()
     await fhir_panel.ensure_loaded(fhir)
-    return fhir_panel.status()
+    return {**fhir_panel.status(), "refreshed": refreshed}
 
 
 @app.get("/fhir/status")

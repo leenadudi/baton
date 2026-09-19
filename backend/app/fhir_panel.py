@@ -29,10 +29,12 @@ FIXTURE_TAG_SYSTEM = "https://github.com/leenadudi/baton"
 FIXTURE_TAG_CODE = "demo-fixture"
 FIXTURE_TAG = f"{FIXTURE_TAG_SYSTEM}|{FIXTURE_TAG_CODE}"
 PANEL_TTL_S = 300
+REFRESH_MIN_INTERVAL_S = 30
 
 NON_BLOCKER_CODES = {"Pending result", "Follow-up owner", "Medication reconciliation"}
 
 _cache: dict = {"patients": None, "loaded_at": 0.0, "source": "demo", "error": None}
+_lock = asyncio.Lock()
 
 
 def is_fixture(r: dict) -> bool:
@@ -192,6 +194,13 @@ async def load_fhir_patients(fhir: FhirClient) -> list[dict]:
                      (dr.get("category") or [{}])[0].get("text"))
             for dr in docrefs
         ))
+        demo = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == pid)
+        blocker_tasks = [t for t in tasks if t.get("status") != "completed"
+                         and (t.get("code") or {}).get("text") not in NON_BLOCKER_CODES]
+        if len(docrefs) < len(demo["notes"]) or len(blocker_tasks) < len(demo["blockers"]):
+            raise RuntimeError(
+                f"incomplete fixtures for {pid}: {len(docrefs)}/{len(demo['notes'])} "
+                f"notes, {len(blocker_tasks)}/{len(demo['blockers'])} blockers")
         out.append(build_patient_from_chart(pid, overrides, patient, docrefs,
                                             tasks, consents, allergies, now))
     return out
@@ -205,18 +214,28 @@ async def ensure_loaded(fhir: FhirClient) -> None:
         return
     if time.time() - _cache["loaded_at"] < PANEL_TTL_S:
         return
-    try:
-        patients = await load_fhir_patients(fhir)
-        _cache.update(patients=patients, source="fhir", error=None,
-                      loaded_at=time.time())
-    except Exception as exc:
-        log.warning("FHIR panel load failed, falling back to demo data: %s", exc)
-        _cache.update(patients=None, source="demo", error=str(exc),
-                      loaded_at=time.time())
+    async with _lock:
+        # another request may have populated the cache while we waited
+        if time.time() - _cache["loaded_at"] < PANEL_TTL_S:
+            return
+        try:
+            patients = await load_fhir_patients(fhir)
+            _cache.update(patients=patients, source="fhir", error=None,
+                          loaded_at=time.time())
+        except Exception as exc:
+            log.warning("FHIR panel load failed, falling back to demo data: %s", exc)
+            _cache.update(patients=None, source="demo", error=str(exc),
+                          loaded_at=time.time())
 
 
-def invalidate() -> None:
+def invalidate() -> bool:
+    """Force the next ensure_loaded to reload. Rate-limited: returns False if
+    a fhir load happened less than REFRESH_MIN_INTERVAL_S ago."""
+    if (_cache["source"] == "fhir"
+            and time.time() - _cache["loaded_at"] < REFRESH_MIN_INTERVAL_S):
+        return False
     _cache["loaded_at"] = 0.0
+    return True
 
 
 def current_patients() -> list[dict] | None:
