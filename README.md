@@ -80,7 +80,7 @@ python scripts/load_fhir.py --bundles dataset/synthea \
 # then to public HAPI
 ```
 
-Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). API routes:
+Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). The panel routes (`/patients`, `/brief`, notes/issues) read the demo fixture resources on the FHIR server by default, cached for 5 minutes; set `PANEL_SOURCE=demo` to force the hardcoded demo patients, and `POST /demo/refresh` to reload from FHIR on demand. API routes:
 
 - `GET /patients`, `GET /patients/{id}` — unit panel: patient + handoff fields, notes, and current issues in one response
 - `POST /patients/{id}/notes` — demo-only: add an instruction note locally (not a FHIR write)

@@ -5,7 +5,7 @@ import json
 import time
 from pathlib import Path
 
-from app import demo_patients, rules
+from app import demo_patients, fhir_panel, rules
 from app.state import STATE, log_act
 
 TYPE_LABEL = {"conflict": "Conflicting instructions", "handoff": "Incomplete handoff",
@@ -16,7 +16,10 @@ DEMO_FHIR_FILE = REPO_ROOT / "dataset" / "demo_patients.json"
 
 
 def load_patients() -> list[dict]:
-    """Patient source for the panel API. Demo data now; FHIR-backed later."""
+    """FHIR fixtures when loaded (see fhir_panel.ensure_loaded); demo otherwise."""
+    cached = fhir_panel.current_patients()
+    if cached is not None:
+        return cached
     patients = copy.deepcopy(demo_patients.DEMO_PATIENTS)
     fhir_ids: dict = {}
     if DEMO_FHIR_FILE.exists():

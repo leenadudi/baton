@@ -8,6 +8,7 @@ from app.main import app
 @pytest.fixture(autouse=True)
 def clean_state(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("PANEL_SOURCE", "demo")
     state.reset()
     yield
 
