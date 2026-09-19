@@ -13,7 +13,7 @@ from typing import Literal
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import panel, rules, state
+from app import fhir_panel, panel, rules, state
 from app.extract import extract
 from app.fhir_client import FhirClient
 from app.rules import FIELDS, TOPICS
@@ -38,9 +38,18 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def _startup() -> None:
+    try:
+        await fhir_panel.ensure_loaded(fhir)
+    except Exception:
+        pass  # panel falls back to demo data
+
+
 @app.get("/api/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok", "message": "Baton API is running"}
+def health_check() -> dict:
+    return {"status": "ok", "message": "Baton API is running",
+            "panel": fhir_panel.status()}
 
 
 def _format_name(patient: dict) -> str | None:
@@ -109,6 +118,10 @@ class IssuePatch(BaseModel):
     value: str | None = None
 
 
+async def _panel_ready() -> None:
+    await fhir_panel.ensure_loaded(fhir)
+
+
 def _patient_or_404(pid: str) -> dict:
     p = panel.get_patient(pid)
     if p is None:
@@ -126,16 +139,19 @@ def _issue_or_404(pid: str, issue_id: str) -> dict:
 
 @app.get("/patients")
 async def list_panel_patients() -> list[dict]:
+    await _panel_ready()
     return [panel.build_patient(p) for p in panel.load_patients()]
 
 
 @app.get("/patients/{pid}")
 async def get_panel_patient(pid: str) -> dict:
+    await _panel_ready()
     return panel.build_patient(_patient_or_404(pid))
 
 
 @app.post("/patients/{pid}/notes")
 async def add_note(pid: str, body: NoteIn) -> dict:
+    await _panel_ready()
     p = _patient_or_404(pid)
     if body.topic:
         if body.topic not in TOPICS or body.value not in TOPICS[body.topic]["values"]:
@@ -162,6 +178,7 @@ async def add_note(pid: str, body: NoteIn) -> dict:
 
 @app.patch("/issues/{issue_id}")
 async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
+    await _panel_ready()
     parts = issue_id.split(":", 2)
     pid = parts[0] if len(parts) == 3 else issue_id.split(":")[0]
     p = _patient_or_404(pid)
@@ -223,6 +240,7 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
 
 @app.get("/brief", response_class=PlainTextResponse)
 async def get_brief() -> str:
+    await _panel_ready()
     return panel.brief_text()
 
 
@@ -230,6 +248,13 @@ async def get_brief() -> str:
 async def demo_reset() -> dict:
     state.reset()
     return {"status": "ok"}
+
+
+@app.post("/demo/refresh")
+async def demo_refresh() -> dict:
+    fhir_panel._cache["loaded_at"] = 0.0
+    await fhir_panel.ensure_loaded(fhir)
+    return fhir_panel.status()
 
 
 @app.get("/fhir/status")
