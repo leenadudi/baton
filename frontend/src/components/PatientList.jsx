@@ -1,18 +1,17 @@
 import { NavLink } from 'react-router-dom'
 import { DS_LABEL } from '../data/chart.js'
-import { dischStatus, riskOf } from '../lib/rules.js'
 
-export default function PatientList({ rows }) {
-  const sorted = [...rows].sort((a, b) => riskOf(b.issues) - riskOf(a.issues))
+export default function PatientList({ patients }) {
+  const sorted = [...patients].sort((a, b) => b.risk - a.risk)
 
   return (
     <nav className="list" aria-label="Patients">
       <h2>Patients by risk</h2>
-      {sorted.map(({ p, issues }) => {
-        const st = dischStatus(p, issues)
-        const c = issues.filter((i) => i.type === 'conflict').length
-        const h = issues.filter((i) => i.type === 'handoff').length
-        const b = issues.filter((i) => i.type === 'blocker').length
+      {sorted.map((p) => {
+        const st = p.dischStatus
+        const c = p.issues.filter((i) => i.type === 'conflict').length
+        const h = p.issues.filter((i) => i.type === 'handoff').length
+        const b = p.issues.filter((i) => i.type === 'blocker').length
         return (
           <NavLink
             key={p.id}
@@ -34,7 +33,7 @@ export default function PatientList({ rows }) {
               </span>
             </span>
             <span className="bar">
-              <span style={{ width: `${Math.min(100, Math.round((riskOf(issues) / 14) * 100))}%` }} />
+              <span style={{ width: `${Math.min(100, Math.round((p.risk / 14) * 100))}%` }} />
             </span>
           </NavLink>
         )
