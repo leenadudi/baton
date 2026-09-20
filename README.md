@@ -2,6 +2,10 @@
 
 Baton drafts the nursing/resident shift handoff from the chart and flags what's missing, contradicted, or stuck — so a nurse or resident isn't re-reading a full chart to catch what the last shift already knew.
 
+**Live demo:** <https://batoncom.vercel.app> — sign in to share the unit view with
+your team, or continue as guest for a private sandbox. The API sleeps when idle,
+so the first request after a quiet period can take up to a minute.
+
 Three flag types:
 
 - **Conflicting instructions** — different care team members left contradictory orders/notes on the same topic (e.g. diet, anticoagulation, weight-bearing). Baton surfaces both source snippets and authors; it does not decide who's right.
