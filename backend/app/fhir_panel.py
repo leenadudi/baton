@@ -104,9 +104,95 @@ def _decode_docref_text(dr: dict) -> str:
     return ""
 
 
+def _coding_text(concept: dict | None) -> str:
+    if not concept:
+        return ""
+    if concept.get("text"):
+        return concept["text"]
+    return (concept.get("coding") or [{}])[0].get("display", "")
+
+
+def _obs_category(obs: dict) -> str | None:
+    for cat in obs.get("category", []):
+        for coding in cat.get("coding", []):
+            if coding.get("code") in ("laboratory", "social-history"):
+                return coding["code"]
+    return None
+
+
+def _obs_value(obs: dict) -> str:
+    if "valueQuantity" in obs:
+        vq = obs["valueQuantity"]
+        return f"{vq.get('value', '')} {vq.get('unit', '')}".strip()
+    if "valueCodeableConcept" in obs:
+        return _coding_text(obs["valueCodeableConcept"])
+    if "valueString" in obs:
+        return obs["valueString"]
+    return ""
+
+
+def _obs_date(obs: dict) -> str | None:
+    return obs.get("effectiveDateTime") or obs.get("issued")
+
+
+RECENT_ENCOUNTERS_LIMIT = 20
+
+
+def _build_patient_info(patient: dict, observations: list, encounters: list) -> dict:
+    """DOB/sex, latest-per-test labs, latest-per-fact social history (smoking,
+    alcohol, drug use), and recent encounters — reference data pulled straight
+    from the Synthea-generated chart so a clinician doesn't need a second
+    system open. Unlike notes/blockers/etc. these aren't Baton fixtures, so
+    they're read from every Observation/Encounter on the patient, not just
+    baton-tagged ones.
+
+    Synthea re-records unchanged social-history facts (e.g. "Ex-smoker") at
+    every checkup for decades, and Encounter history can span a lifetime —
+    both are deduped/capped here since FhirClient.search()'s _count only
+    bounds page size, not the total paginated result."""
+    labs: list[dict] = []
+    social: list[dict] = []
+    seen_labs: set[str] = set()
+    seen_social: set[str] = set()
+    # observations arrive newest-first (_sort=-date), so first occurrence per
+    # test/fact name is the latest result.
+    for obs in observations:
+        name = _coding_text(obs.get("code"))
+        if not name:
+            continue
+        category = _obs_category(obs)
+        entry = {"name": name, "value": _obs_value(obs), "date": _obs_date(obs)}
+        if category == "laboratory" and name not in seen_labs:
+            seen_labs.add(name)
+            labs.append(entry)
+        elif category == "social-history" and name not in seen_social:
+            seen_social.add(name)
+            social.append(entry)
+
+    visits = []
+    for enc in encounters[:RECENT_ENCOUNTERS_LIMIT]:
+        period = enc.get("period") or {}
+        visits.append({
+            "date": period.get("start"),
+            "type": _coding_text((enc.get("type") or [{}])[0]),
+            "reason": _coding_text((enc.get("reasonCode") or [{}])[0]),
+            "status": enc.get("status"),
+        })
+
+    return {
+        "dob": patient.get("birthDate"),
+        "gender": patient.get("gender"),
+        "labs": labs,
+        "socialHistory": social,
+        "encounters": visits,
+    }
+
+
 def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
                              docrefs: list, tasks: list, consents: list,
-                             allergies: list, now: datetime) -> dict:
+                             allergies: list, now: datetime,
+                             observations: list | None = None,
+                             encounters: list | None = None) -> dict:
     demo = next((p for p in demo_patients.DEMO_PATIENTS if p["id"] == persona_id), {})
 
     p = {
@@ -178,7 +264,23 @@ def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
                           or follow_up.get("description") or "") if follow_up else "",
         "medRec": (med_rec.get("description") or "") if med_rec else "",
     }
+    p["info"] = _build_patient_info(patient, observations or [], encounters or [])
     return p
+
+
+async def _fetch_info_resources(fhir: FhirClient, fid: str) -> tuple[list, list]:
+    """Observation/Encounter for the patient-info panel. Reference-only data —
+    a flaky call here must not fail the whole panel load the way a missing
+    fixture resource does, so it degrades to an empty info section instead."""
+    try:
+        return await asyncio.gather(
+            fhir.search("Observation", patient=fid, category="laboratory,social-history",
+                       _sort="-date", _count=200),
+            fhir.search("Encounter", patient=fid, _sort="-date", _count=20),
+        )
+    except Exception:
+        log.warning("Failed to fetch patient-info resources for %s", fid, exc_info=True)
+        return [], []
 
 
 async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
@@ -207,6 +309,7 @@ async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
             fhir.search("AllergyIntolerance", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Communication", patient=fid, _tag=FIXTURE_TAG, _count=100),
         )
+        observations, encounters = await _fetch_info_resources(fhir, fid)
         docrefs = [r for r in docrefs if is_fixture(r)]
         tasks = [r for r in tasks if is_fixture(r)]
         consents = [r for r in consents if is_fixture(r)]
@@ -227,7 +330,8 @@ async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
         ))
         demo = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == pid)
         built = build_patient_from_chart(pid, overrides, patient, docrefs,
-                                         tasks, consents, allergies, now)
+                                         tasks, consents, allergies, now,
+                                         observations, encounters)
         missing = []
         if len(built["notes"]) < len(demo["notes"]):
             missing.append(f"notes {len(built['notes'])}/{len(demo['notes'])}")

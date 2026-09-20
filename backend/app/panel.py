@@ -73,6 +73,7 @@ def build_patient(p: dict) -> dict:
     p["risk"] = rules.risk_of(issues)
     p["dischStatus"] = rules.disch_status(p, issues)
     p["log"] = S["log"].get(pid, [])
+    p.setdefault("info", None)  # demo-fallback patients carry no Synthea Observation/Encounter data
     return p
 
 

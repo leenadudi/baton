@@ -220,3 +220,55 @@ def test_demo_source_returns_demo(monkeypatch):
     assert fhir_panel.status()["source"] == "demo"
     patients = panel.load_patients()
     assert [p["id"] for p in patients] == [p["id"] for p in demo_patients.DEMO_PATIENTS]
+
+
+def _obs(category, name, value=None, date="2026-01-01T00:00:00Z"):
+    entry = {"category": [{"coding": [{"code": category}]}],
+             "code": {"text": name}, "effectiveDateTime": date}
+    if value is not None:
+        entry["valueQuantity"] = {"value": value, "unit": "mg/dL"}
+    return entry
+
+
+def test_build_patient_info_dedupes_and_caps():
+    # newest-first input, as _sort=-date returns; older duplicate entries for
+    # the same lab/social-history fact must be dropped, keeping only the latest.
+    observations = [
+        _obs("laboratory", "Hemoglobin", 9.6, "2026-09-18T10:00:00Z"),
+        _obs("laboratory", "Hemoglobin", 12.1, "2026-08-01T10:00:00Z"),  # older dup, dropped
+        _obs("laboratory", "Potassium", 4.2, "2026-09-18T10:00:00Z"),
+        _obs("social-history", "Tobacco smoking status", None, "2020-01-01T00:00:00Z"),
+        _obs("social-history", "Tobacco smoking status", None, "2015-01-01T00:00:00Z"),  # older dup
+    ]
+    observations[3]["valueCodeableConcept"] = {"text": "Former smoker"}
+    observations[4]["valueCodeableConcept"] = {"text": "Former smoker"}
+    encounters = [
+        {"period": {"start": f"202{n}-01-01T00:00:00Z"}, "status": "finished"}
+        for n in range(9, -1, -1)  # 10 encounters this decade
+    ] + [
+        {"period": {"start": f"19{90 + n}-01-01T00:00:00Z"}, "status": "finished"}
+        for n in range(15)  # 15 more from the 90s -> 25 total, over the cap of 20
+    ]
+
+    info = fhir_panel._build_patient_info(
+        {"birthDate": "1948-03-12", "gender": "female"}, observations, encounters)
+
+    assert info["dob"] == "1948-03-12"
+    assert [l["name"] for l in info["labs"]] == ["Hemoglobin", "Potassium"]
+    assert info["labs"][0]["value"] == "9.6 mg/dL"  # kept the newer of the two Hemoglobin reads
+    assert len(info["socialHistory"]) == 1
+    assert info["socialHistory"][0]["date"] == "2020-01-01T00:00:00Z"
+    assert len(info["encounters"]) == fhir_panel.RECENT_ENCOUNTERS_LIMIT
+
+
+def test_build_patient_matches_demo_has_info(p1_built):
+    # build_patient_from_chart defaults observations/encounters to [] when the
+    # caller (e.g. this test's fixture) doesn't pass any.
+    assert p1_built["info"] == {"dob": None, "gender": None, "labs": [],
+                                "socialHistory": [], "encounters": []}
+
+
+def test_panel_build_patient_defaults_info_for_demo_fallback():
+    demo_p1 = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == "p1")
+    built = panel.build_patient(json.loads(json.dumps(demo_p1)))
+    assert built["info"] is None

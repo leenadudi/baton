@@ -5,7 +5,12 @@ import { ago, handoffProgress } from '../lib/rules.js'
 import IssueCard from './IssueCard.jsx'
 import AddNoteForm from './AddNoteForm.jsx'
 
-const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps'],['blocker','Blockers']]
+const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps'],['blocker','Blockers'],['completed','Completed']]
+
+function fmtDate(iso) {
+  if (!iso) return 'Unknown date'
+  return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
 export default function PatientDetail() {
   const { patientId } = useParams()
@@ -31,11 +36,12 @@ export default function PatientDetail() {
   const hp = handoffProgress(p)
   const hotTopics = {}
   issues.forEach((i) => { if (i.type === 'conflict') hotTopics[i.topic] = true })
-  const shown = issues.filter((i) => filter === 'all' || i.type === filter)
-  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0 }
-  issues.forEach((i) => counts[i.type]++)
+  const shown = filter === 'completed' ? [] : issues.filter((i) => filter === 'all' || i.type === filter)
   const notes = [...p.notes].sort((a, b) => b.seq - a.seq)
   const log = p.log || []
+  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0, completed: log.length }
+  issues.forEach((i) => counts[i.type]++)
+  const info = p.info
 
   return (
     <main>
@@ -60,8 +66,67 @@ export default function PatientDetail() {
 
       <section className="panel">
         <div className="sec-h">
-          <h3>What needs attention</h3>
-          <span className="hint">Highest priority first</span>
+          <h3>Patient info</h3>
+          <span className="hint">From the chart, so you don't need a second system open</span>
+        </div>
+        {info ? (
+          <>
+            <div className="hgrid">
+              <div className="hf ok">
+                <div>
+                  <div className="k">Date of birth</div>
+                  <div className="v">{info.dob ? fmtDate(info.dob) : 'Unknown'}</div>
+                </div>
+              </div>
+              <div className="hf ok">
+                <div>
+                  <div className="k">Sex</div>
+                  <div className="v">{info.gender || 'Unknown'}</div>
+                </div>
+              </div>
+              {info.socialHistory.map((s, k) => (
+                <div className="hf ok" key={k}>
+                  <div>
+                    <div className="k">{s.name}</div>
+                    <div className="v">{s.value || 'Recorded, no value'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {info.labs.length > 0 && (
+              <>
+                <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>Latest labs</h3></div>
+                <ul className="log">
+                  {info.labs.map((l, k) => (
+                    <li key={k}><time>{fmtDate(l.date)}</time>{l.name}: {l.value || 'no value recorded'}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {info.encounters.length > 0 && (
+              <>
+                <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>Past visits</h3></div>
+                <ul className="log">
+                  {info.encounters.map((e, k) => (
+                    <li key={k}>
+                      <time>{fmtDate(e.date)}</time>{e.type || 'Encounter'}{e.reason ? ` — ${e.reason}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="tag">Not available — offline/demo mode, or nothing recorded on the chart.</div>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="sec-h">
+          <h3>{filter === 'completed' ? 'Completed' : 'What needs attention'}</h3>
+          <span className="hint">
+            {filter === 'completed' ? 'Resolved on this patient, most recent first' : 'Highest priority first'}
+          </span>
         </div>
         <div className="chips" role="group" aria-label="Filter issues">
           {FILTERS.map(([f, label]) => (
@@ -73,7 +138,23 @@ export default function PatientDetail() {
             >{label} ({counts[f]})</button>
           ))}
         </div>
-        {shown.length ? (
+        {filter === 'completed' ? (
+          log.length ? (
+            <ul className="log">
+              {log.map((e, k) => (
+                <li key={k}>
+                  <time>{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+                  {e.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="empty">
+              <b>Nothing completed yet</b>
+              Clearing a blocker, filling a handoff field, assigning an owner, or resolving a conflict will show up here.
+            </div>
+          )
+        ) : shown.length ? (
           shown.map((i) => (
             <IssueCard key={i.id} issue={i} actions={actions} />
           ))
@@ -144,22 +225,6 @@ export default function PatientDetail() {
           </div>
         ))}
         <AddNoteForm pid={p.id} actions={actions} />
-      </section>
-
-      <section className="panel">
-        <div className="sec-h"><h3>Activity</h3></div>
-        {log.length ? (
-          <ul className="log">
-            {log.slice(0, 12).map((e, k) => (
-              <li key={k}>
-                <time>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-                {e.text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="tag">Actions taken in Baton will show up here.</div>
-        )}
       </section>
     </main>
   )
