@@ -113,6 +113,23 @@ def test_field_valid_index_and_verbatim_quote(monkeypatch):
     assert resp.json()["value"] is None
 
 
+def test_field_requires_quote(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    _, issue = find_issue("handoff",
+                          lambda i: i.get("fix", {}).get("kind") == "field")
+    # value + valid index but quote null -> dropped
+    monkeypatch.setattr(suggest, "_ask",
+                        fake_ask({"value": "DNR", "noteIndex": 0, "quote": None}))
+    assert client.post("/suggest/field",
+                       json={"issue_id": issue["id"]}).json()["value"] is None
+    # non-string quote -> dropped, no 500
+    monkeypatch.setattr(suggest, "_ask",
+                        fake_ask({"value": "DNR", "noteIndex": 0, "quote": 42}))
+    resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
+    assert resp.status_code == 200
+    assert resp.json()["value"] is None
+
+
 def test_field_wrong_type_400():
     _, issue = find_issue("conflict")
     assert client.post("/suggest/field",
@@ -126,6 +143,29 @@ def test_huddle_returns_script(monkeypatch):
     resp = client.post("/suggest/huddle")
     assert resp.status_code == 200
     assert resp.json() == {"advisory": True, "script": "Room by room: ..."}
+
+
+def test_suggest_does_not_save_state(monkeypatch):
+    """Read-only ctx: a slow suggestion await must not overwrite another
+    clinician's concurrent mutation."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(suggest, "_ask", fake_ask({"script": "hi"}))
+    from app import store as store_mod
+    saves = []
+    orig = store_mod.MemoryStore.save_state
+    monkeypatch.setattr(store_mod.MemoryStore, "save_state",
+                        lambda self, scope, s: saves.append(scope))
+    _, issue = find_issue("conflict")
+    saves.clear()  # GET /patients itself persists via _ctx
+    assert client.post("/suggest/clarify",
+                       json={"issue_id": issue["id"]}).status_code == 200
+    assert client.post("/suggest/huddle").status_code == 200
+    assert saves == []
+    # a mutating route still persists
+    _, block = find_issue("blocker")
+    assert client.patch(f"/issues/{block['id']}",
+                        json={"action": "clear"}).status_code == 200
+    assert saves
 
 
 def test_no_key_is_503():

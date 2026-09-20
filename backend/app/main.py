@@ -209,6 +209,14 @@ def _ctx(doctor: dict | None = Depends(_optional_doctor),
     st.prune()
 
 
+def _ctx_ro(doctor: dict | None = Depends(_optional_doctor),
+            x_session_id: str | None = Header(default=None)) -> _Ctx:
+    """Same scope resolution as _ctx, but never saves — for read-only routes."""
+    st = store_mod.get_store()
+    scope = store_mod.UNIT_SCOPE if doctor else store_mod.session_scope(x_session_id)
+    return _Ctx(scope, st.get_state(scope), doctor)
+
+
 def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
             target: str | None = None, resolved: bool = True) -> None:
     doctor_name = ctx.doctor["name"] if ctx.doctor else "Guest"
@@ -439,7 +447,7 @@ def _suggest_target(issue_id: str, s: dict) -> tuple[dict, dict]:
 
 
 @app.post("/suggest/clarify")
-async def suggest_clarify(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+async def suggest_clarify(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
     await _panel_ready()
     p, issue = _suggest_target(body.issue_id, ctx.s)
     if issue["type"] != "conflict":
@@ -448,7 +456,7 @@ async def suggest_clarify(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
 
 
 @app.post("/suggest/owner")
-async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
     await _panel_ready()
     p, issue = _suggest_target(body.issue_id, ctx.s)
     ok = issue["type"] == "blocker" or (
@@ -460,7 +468,7 @@ async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
 
 
 @app.post("/suggest/field")
-async def suggest_field(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+async def suggest_field(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
     await _panel_ready()
     p, issue = _suggest_target(body.issue_id, ctx.s)
     if not (issue["type"] == "handoff" and
@@ -470,7 +478,7 @@ async def suggest_field(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
 
 
 @app.post("/suggest/huddle")
-async def suggest_huddle(ctx: _Ctx = Depends(_ctx)) -> dict:
+async def suggest_huddle(ctx: _Ctx = Depends(_ctx_ro)) -> dict:
     await _panel_ready()
     return await suggest.huddle(panel.brief_text(ctx.s))
 

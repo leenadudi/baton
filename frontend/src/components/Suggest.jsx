@@ -9,6 +9,7 @@ export function useSuggestion(fn) {
   const run = async (...args) => {
     setLoading(true)
     setError(null)
+    setData(null)
     try {
       setData(await fn(...args))
     } catch (e) {

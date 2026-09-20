@@ -106,9 +106,10 @@ async def field(issue: dict, patient: dict) -> dict:
     idx, quote = res.get("noteIndex"), res.get("quote")
     if value is not None and isinstance(idx, int) and 0 <= idx < len(notes):
         note = notes[idx]
-        # The quote, if returned, must appear verbatim in that note — otherwise
-        # we can't trust the attribution and drop the whole suggestion.
-        if not quote or quote.lower() in (note.get("text") or "").lower():
+        # The quote must appear verbatim in that note — otherwise we can't
+        # trust the attribution and drop the whole suggestion.
+        if (isinstance(quote, str) and quote
+                and quote.lower() in (note.get("text") or "").lower()):
             source = {"role": note.get("role"), "author": note.get("author"),
                       "h": note.get("h"), "text": note.get("text"),
                       "source": note.get("source")}
