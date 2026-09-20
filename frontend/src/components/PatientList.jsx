@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { DS_LABEL } from '../data/chart.js'
 import { etaLabel } from '../lib/rules.js'
 
@@ -20,6 +20,13 @@ const SORTS = [
 // A missing handoff field and an unowned pending result are both "handoff"
 // issues but call for different work, so the verb comes from the issue rather
 // than the type alone.
+// Spelled out on hover so the tiers do not need explaining out of band.
+const DS_WHY = {
+  risk: 'At least one high-severity issue open',
+  watch: 'Has open issues, none high severity',
+  ready: 'No open coordination issues',
+}
+
 const isPending = (i) => /^Pending result has no owner:/.test(i.title)
 
 function nextVerb(i) {
@@ -51,6 +58,7 @@ const initials = (name) =>
 // down a list of six than stacked cards do. Rows are links, so cmd-click and
 // middle-click open a patient in a new tab.
 export default function PatientList({ patients, query }) {
+  const navigate = useNavigate()
   const [tab, setTab] = useState('all')
   const [sort, setSort] = useState('risk')
 
@@ -99,7 +107,7 @@ export default function PatientList({ patients, query }) {
               <th scope="col" className="dx-h">Diagnosis</th>
               <th scope="col" className="nact-h">Next action</th>
               <th scope="col">Discharge</th>
-              <th scope="col">Status</th>
+              <th scope="col" title="At risk: a high-severity issue is open. Watch: open issues, none high. Ready: nothing open.">Status</th>
               <th scope="col" className="num">Conflicts</th>
               <th scope="col" className="num">Gaps</th>
               <th scope="col" className="num">Blockers</th>
@@ -111,7 +119,12 @@ export default function PatientList({ patients, query }) {
               const h = p.issues.filter((i) => i.type === 'handoff').length
               const b = p.issues.filter((i) => i.type === 'blocker').length
               return (
-                <tr key={p.id}>
+                <tr key={p.id} className="rowlink"
+                  onClick={(e) => {
+                    if (e.target.closest('a,button,select,input,label')) return
+                    if (window.getSelection()?.toString()) return
+                    navigate(`/patients/${p.id}`)
+                  }}>
                   <td>
                     <Link className="who" to={`/patients/${p.id}`}>
                       <span className="ini" aria-hidden="true">{initials(p.name)}</span>
@@ -148,7 +161,9 @@ export default function PatientList({ patients, query }) {
                   </td>
                   <td className="eta">{etaLabel(p.dischargeInH)}</td>
                   <td>
-                    <span className={`dch ${p.dischStatus}`}>{DS_LABEL[p.dischStatus]}</span>
+                    <span className={`dch ${p.dischStatus}`} title={DS_WHY[p.dischStatus]}>
+                      {DS_LABEL[p.dischStatus]}
+                    </span>
                   </td>
                   <td className="num"><i className={`cnt ${c ? 'c' : 'z'}`}>{c}</i></td>
                   <td className="num"><i className={`cnt ${h ? 'h' : 'z'}`}>{h}</i></td>

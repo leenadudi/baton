@@ -151,3 +151,6 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
    enough to centre, and the header centres with it so they line up. */
 .pt-table th:nth-child(n+4),.pt-table td:nth-child(n+4){text-align:center;}
 .pt-table td{vertical-align:top;padding-top:13px;}
+
+/* The whole row opens the patient, so it needs to look clickable. */
+.pt-table tbody tr.rowlink{cursor:pointer;}
