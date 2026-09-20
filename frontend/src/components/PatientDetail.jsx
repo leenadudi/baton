@@ -12,6 +12,18 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function InfoList({ title, items, render }) {
+  if (!items.length) return null
+  return (
+    <>
+      <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>{title}</h3></div>
+      <ul className="log">
+        {items.map((item, k) => <li key={k}>{render(item)}</li>)}
+      </ul>
+    </>
+  )
+}
+
 export default function PatientDetail() {
   const { patientId } = useParams()
   const { patients, actions } = useOutletContext()
@@ -93,28 +105,20 @@ export default function PatientDetail() {
                 </div>
               ))}
             </div>
-            {info.labs.length > 0 && (
-              <>
-                <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>Latest labs</h3></div>
-                <ul className="log">
-                  {info.labs.map((l, k) => (
-                    <li key={k}><time>{fmtDate(l.date)}</time>{l.name}: {l.value || 'no value recorded'}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {info.encounters.length > 0 && (
-              <>
-                <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>Past visits</h3></div>
-                <ul className="log">
-                  {info.encounters.map((e, k) => (
-                    <li key={k}>
-                      <time>{fmtDate(e.date)}</time>{e.type || 'Encounter'}{e.reason ? ` — ${e.reason}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
+            <InfoList title="Care team" items={info.careTeam}
+              render={(m) => <>{m.name}{m.role ? ` — ${m.role}` : ''}</>} />
+            <InfoList title="Active problems" items={info.conditions}
+              render={(c) => <>{c.name}{c.onset ? ` (since ${fmtDate(c.onset)})` : ''}</>} />
+            <InfoList title="Current medications" items={info.medications}
+              render={(m) => <><time>{fmtDate(m.date)}</time>{m.name}{m.dose ? ` — ${m.dose}` : ''}</>} />
+            <InfoList title="Latest vitals" items={info.vitals}
+              render={(v) => <><time>{fmtDate(v.date)}</time>{v.name}: {v.value || 'no value recorded'}</>} />
+            <InfoList title="Latest labs" items={info.labs}
+              render={(l) => <><time>{fmtDate(l.date)}</time>{l.name}: {l.value || 'no value recorded'}</>} />
+            <InfoList title="Recent procedures" items={info.procedures}
+              render={(p) => <><time>{fmtDate(p.date)}</time>{p.name}</>} />
+            <InfoList title="Past visits" items={info.encounters}
+              render={(e) => <><time>{fmtDate(e.date)}</time>{e.type || 'Encounter'}{e.reason ? ` — ${e.reason}` : ''}</>} />
           </>
         ) : (
           <div className="tag">Not available — offline/demo mode, or nothing recorded on the chart.</div>

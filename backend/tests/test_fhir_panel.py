@@ -262,13 +262,94 @@ def test_build_patient_info_dedupes_and_caps():
 
 
 def test_build_patient_matches_demo_has_info(p1_built):
-    # build_patient_from_chart defaults observations/encounters to [] when the
+    # build_patient_from_chart defaults every info source to [] when the
     # caller (e.g. this test's fixture) doesn't pass any.
-    assert p1_built["info"] == {"dob": None, "gender": None, "labs": [],
-                                "socialHistory": [], "encounters": []}
+    assert p1_built["info"] == {"dob": None, "gender": None, "labs": [], "vitals": [],
+                                "socialHistory": [], "encounters": [], "medications": [],
+                                "conditions": [], "procedures": [], "careTeam": []}
 
 
 def test_panel_build_patient_defaults_info_for_demo_fallback():
     demo_p1 = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == "p1")
     built = panel.build_patient(json.loads(json.dumps(demo_p1)))
     assert built["info"] is None
+
+
+def test_build_patient_info_vitals_medications_conditions_procedures_careteam():
+    observations = [
+        _obs("vital-signs", "Heart rate", 72, "2026-09-19T00:00:00Z"),
+        _obs("vital-signs", "Heart rate", 68, "2026-09-18T00:00:00Z"),  # older dup, dropped
+    ]
+    bp = {
+        "category": [{"coding": [{"code": "vital-signs"}]}],
+        "code": {"text": "Blood pressure panel"},
+        "effectiveDateTime": "2026-09-19T00:00:00Z",
+        "component": [
+            {"code": {"text": "Systolic"}, "valueQuantity": {"value": 128, "unit": "mm[Hg]"}},
+            {"code": {"text": "Diastolic"}, "valueQuantity": {"value": 82, "unit": "mm[Hg]"}},
+        ],
+    }
+    observations.append(bp)
+    medications = [{"medicationCodeableConcept": {"text": "Lisinopril 10 MG"},
+                    "dosageInstruction": [{"text": "1 tablet daily"}],
+                    "authoredOn": "2026-09-01T00:00:00Z"}]
+    conditions = [{"code": {"text": "Type 2 diabetes"}, "onsetDateTime": "2018-01-01T00:00:00Z"}]
+    procedures = [{"code": {"text": "ORIF hip"}, "performedDateTime": "2026-09-17T00:00:00Z"}]
+    care_teams = [{"participant": [
+        {"role": [{"text": "Orthopedics"}], "member": {"display": "Dr. Reyes"}},
+        {"role": [{"text": "Hospitalist"}], "member": {"display": "Dr. Okafor"}},
+    ]}]
+
+    info = fhir_panel._build_patient_info(
+        {"birthDate": "1948-03-12", "gender": "female"}, observations, [],
+        medications, conditions, procedures, care_teams)
+
+    assert [v["name"] for v in info["vitals"]] == ["Heart rate", "Blood pressure panel"]
+    assert info["vitals"][0]["value"] == "72 mg/dL"
+    assert info["vitals"][1]["value"] == "Systolic: 128 mm[Hg]; Diastolic: 82 mm[Hg]"
+    assert info["medications"] == [{"name": "Lisinopril 10 MG", "dose": "1 tablet daily",
+                                    "date": "2026-09-01T00:00:00Z"}]
+    assert info["conditions"] == [{"name": "Type 2 diabetes", "onset": "2018-01-01T00:00:00Z"}]
+    assert info["procedures"] == [{"name": "ORIF hip", "date": "2026-09-17T00:00:00Z"}]
+    assert info["careTeam"] == [{"name": "Dr. Reyes", "role": "Orthopedics"},
+                                {"name": "Dr. Okafor", "role": "Hospitalist"}]
+
+
+def test_dosage_text_falls_back_to_structured_fields():
+    # Synthea usually omits dosageInstruction.text entirely, leaving only
+    # timing.repeat / doseAndRate — this is the shape #35's dose came back
+    # blank against on the live server.
+    no_dosage = {"medicationCodeableConcept": {"text": "Alteplase 100 MG Injection"}}
+    assert fhir_panel._dosage_text(no_dosage) == ""
+
+    structured = {"dosageInstruction": [{
+        "timing": {"repeat": {"frequency": 1, "period": 1.0, "periodUnit": "d"}},
+        "doseAndRate": [{"doseQuantity": {"value": 1.0}}],
+    }]}
+    assert fhir_panel._dosage_text(structured) == "1x/day"
+
+    with_unit_and_freq = {"dosageInstruction": [{
+        "timing": {"repeat": {"frequency": 2, "period": 1.0, "periodUnit": "d"}},
+        "doseAndRate": [{"doseQuantity": {"value": 500, "unit": "mg"}}],
+    }]}
+    assert fhir_panel._dosage_text(with_unit_and_freq) == "500 mg, 2x/day"
+
+    has_text = {"dosageInstruction": [{"text": "1 tablet by mouth daily"}]}
+    assert fhir_panel._dosage_text(has_text) == "1 tablet by mouth daily"
+
+
+def test_build_patient_info_procedures_capped():
+    procedures = [{"code": {"text": f"Procedure {i}"}, "performedDateTime": "2026-01-01T00:00:00Z"}
+                 for i in range(30)]
+    info = fhir_panel._build_patient_info({}, [], [], procedures=procedures)
+    assert len(info["procedures"]) == fhir_panel.RECENT_PROCEDURES_LIMIT
+
+
+def test_careteam_fetched_and_filtered_by_fixture_tag(fresh_cache, monkeypatch):
+    monkeypatch.setenv("PANEL_SOURCE", "fhir")
+    fake = FakeFhirClient()
+    patients, _, _ = asyncio.run(fhir_panel.load_fhir_patients(fake))
+    p1 = next(p for p in patients if p["id"] == "p1")
+    names = {m["name"] for m in p1["info"]["careTeam"]}
+    assert "Dr. Reyes" in names
+    assert "Dr. Okafor" in names
