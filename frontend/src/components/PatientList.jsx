@@ -12,7 +12,6 @@ const TABS = [
 const SORTS = [
   ['risk', 'Highest risk'],
   ['discharge', 'Soonest discharge'],
-  ['room', 'Room number'],
 ]
 
 // What to call the work, by issue type. Issues arrive sorted highest-severity
@@ -52,7 +51,6 @@ export default function PatientList({ patients, query }) {
     .filter((p) => !q || `${p.room} ${p.name} ${p.dx}`.toLowerCase().includes(q))
     .sort((a, b) => {
       if (sort === 'discharge') return a.dischargeInH - b.dischargeInH
-      if (sort === 'room') return a.room.localeCompare(b.room, undefined, { numeric: true })
       return b.risk - a.risk
     })
 
