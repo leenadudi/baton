@@ -17,24 +17,14 @@ const AuthCtx = createContext(null)
 const initials = (name) =>
   name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
-function StatusPill({ status }) {
-  return (
-    <span className="pill" title={status === 'api'
-      ? 'Issues computed by the backend rule engine'
-      : 'Backend unreachable — running the local demo engine'}>
-      {status === 'api' ? 'Live chart' : 'Offline demo data'}
-    </span>
-  )
-}
-
 /* -------- dashboard: unit panel -------- */
 function Dashboard({ chart, auth, onBrief, onTeam }) {
-  const { patients, status, actions } = chart
+  const { patients, actions } = chart
   const [query, setQuery] = useState('')
 
   return (
     <div className="app">
-      <TopNav query={query} onQuery={setQuery} status={<StatusPill status={status} />}
+      <TopNav query={query} onQuery={setQuery}
         onTeam={onTeam} onBrief={onBrief} auth={auth} />
       <div className="main">
         <div className="content">
@@ -54,12 +44,12 @@ function Dashboard({ chart, auth, onBrief, onTeam }) {
 /* -------- patient profile -------- */
 function Profile({ chart, auth, onBrief, onTeam }) {
   const { patientId } = useParams()
-  const { patients, status, actions } = chart
+  const { patients, actions } = chart
   const p = patients.find((x) => x.id === patientId)
 
   return (
     <div className="app">
-      <TopNav back status={<StatusPill status={status} />}
+      <TopNav back
         onTeam={onTeam} onBrief={onBrief} auth={auth} />
       <div className="main">
 

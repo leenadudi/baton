@@ -23,7 +23,9 @@ export const FIELDS = [
 
 export const TYPE_LABEL = {conflict:"Conflicting instructions",handoff:"Incomplete handoff",blocker:"Administrative blocker"}
 export const SEV_LABEL = {high:"High priority",med:"Medium priority",low:"Low priority"}
-export const DS_LABEL = {risk:"At risk",watch:"Watch",ready:"Ready"}
+// "Watch" collided with I-PASS's "watcher", which means a clinician thinks a
+// patient may deteriorate. This tier only counts coordination issues.
+export const DS_LABEL = {risk:"At risk",watch:"Monitor",ready:"Ready"}
 export const W = {high:3,med:2,low:1}
 
 const RAW_PATIENTS = [

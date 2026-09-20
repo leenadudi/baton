@@ -6,7 +6,7 @@ import { etaLabel } from '../lib/rules.js'
 const TABS = [
   ['all', 'All'],
   ['risk', 'At risk'],
-  ['watch', 'Watch'],
+  ['watch', 'Monitor'],
   ['ready', 'Ready'],
 ]
 const SORTS = [
@@ -65,7 +65,7 @@ export default function PatientList({ patients, query }) {
   const q = query.trim().toLowerCase()
   const rows = patients
     .filter((p) => tab === 'all' || p.dischStatus === tab)
-    .filter((p) => !q || `${p.room} ${p.name} ${p.dx}`.toLowerCase().includes(q))
+    .filter((p) => !q || `${p.room} ${p.name}`.toLowerCase().includes(q))
     .sort((a, b) => {
       if (sort === 'discharge') return a.dischargeInH - b.dischargeInH
       return b.risk - a.risk
@@ -107,7 +107,7 @@ export default function PatientList({ patients, query }) {
               <th scope="col" className="dx-h">Diagnosis</th>
               <th scope="col" className="nact-h">Next action</th>
               <th scope="col">Discharge</th>
-              <th scope="col" title="At risk: a high-severity issue is open. Watch: open issues, none high. Ready: nothing open.">Status</th>
+              <th scope="col" title="At risk: a high-severity issue is open. Monitor: open issues, none high. Ready: nothing open.">Status</th>
               <th scope="col" className="num">Conflicts</th>
               <th scope="col" className="num">Gaps</th>
               <th scope="col" className="num">Blockers</th>

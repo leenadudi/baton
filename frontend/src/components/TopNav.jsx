@@ -4,7 +4,7 @@ import Icon from './Icon.jsx'
 
 // One bar, no sidebar: brand, optional patient search, and the actions that
 // used to be split between the rail and the page header.
-export default function TopNav({ query, onQuery, back, status, onTeam, onBrief, auth }) {
+export default function TopNav({ query, onQuery, back, onTeam, onBrief, auth }) {
   const ref = useRef(null)
   // The bar wraps at narrow widths, so sticky elements below it read its real
   // height from --topnav-h rather than a fixed offset.
@@ -36,14 +36,13 @@ export default function TopNav({ query, onQuery, back, status, onTeam, onBrief, 
           <Icon name="search" />
           <input
             type="search" value={query} onChange={(e) => onQuery(e.target.value)}
-            placeholder="Search room, name, dx" aria-label="Search patients"
+            placeholder="Search name or room" aria-label="Search patients"
             spellCheck={false} autoComplete="off"
           />
         </div>
       )}
 
       <div className="grp tn-right">
-        {status}
         {onTeam && <button className="btn" onClick={onTeam}>Team activity</button>}
         {onBrief && <button className="btn primary" onClick={onBrief}>Shift brief</button>}
         {auth && (auth.doctor ? (
