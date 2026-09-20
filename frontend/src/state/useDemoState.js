@@ -24,9 +24,13 @@ export function useDemoState() {
     try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* ignore */ }
   }, [state])
 
-  const logged = useCallback((s, pid, text) => ({
+  // resolved=false for ongoing/failed entries (escalating raises urgency, it
+  // doesn't close the blocker) — mirrors backend/app/state.py's log_act so
+  // the Completed tab reads the same whether served by the API or this
+  // offline fallback (PRD 6.1: a cold Render backend must not blank the demo).
+  const logged = useCallback((s, pid, text, resolved = true) => ({
     ...s,
-    log: { ...s.log, [pid]: [{ at: Date.now(), text }, ...(s.log[pid] || [])] },
+    log: { ...s.log, [pid]: [{ at: Date.now(), text, resolved }, ...(s.log[pid] || [])] },
   }), [])
 
   const appendNote = useCallback((s, pid, note) => ({
@@ -64,7 +68,7 @@ export function useDemoState() {
 
     escalateBlocker: (pid, bid, label) => setState((s) => {
       const next = { ...s, escalated: { ...s.escalated, [`${pid}|${bid}`]: true } }
-      return logged(next, pid, `Escalated blocker: ${label}`)
+      return logged(next, pid, `Escalated blocker: ${label}`, false)
     }),
 
     addNote: (pid, { role, topic, value, text }) => setState((s) => {
@@ -73,7 +77,7 @@ export function useDemoState() {
         role, author: `${role} (you)`, text: body, tags: topic ? [[topic, value]] : [],
       })
       const suffix = topic ? ` (${TOPICS[topic].label}: ${value})` : ''
-      return logged(next, pid, `Added ${role} note${suffix}`)
+      return logged(next, pid, `Added ${role} note${suffix}`, false)
     }),
 
     setOwner: (pid, issueId, owner, issueTitle) => setState((s) => {

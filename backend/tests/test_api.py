@@ -77,6 +77,20 @@ def test_clear_and_escalate():
     assert b2["escalated"] is True
 
 
+def test_log_marks_ongoing_work_unresolved():
+    """The Completed tab filters on `resolved` — clearing/filling/reconciling
+    close something, but escalating a blocker raises its urgency instead of
+    resolving it, and adding a note can introduce a new conflict rather than
+    settle one. Neither should read as done."""
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"})
+    client.patch("/issues/p1:blocker:b2", json={"action": "escalate"})
+    client.post("/patients/p1/notes", json={"role": "Nursing", "text": "Vitals stable."})
+    log = {e["text"]: e["resolved"] for e in patient("p1")["log"]}
+    assert log["Cleared blocker: SNF insurance authorization"] is True
+    assert log["Escalated blocker: Ambulance transport not booked"] is False
+    assert log["Added Nursing note"] is False
+
+
 def test_assign_owner_shows_in_brief():
     resp = client.patch("/issues/p1:conflict:anticoagulation",
                         json={"action": "owner", "value": "Night Resident"})

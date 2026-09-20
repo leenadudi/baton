@@ -9,7 +9,15 @@ const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps
 
 function fmtDate(iso) {
   if (!iso) return 'Unknown date'
-  return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+  // Date-only FHIR values (birthDate, onsetDate) have no timezone — parsing
+  // them as UTC-midnight and rendering in local time can shift the calendar
+  // day back by one for viewers west of UTC. Build the Date from local
+  // y/m/d components instead so the day never moves.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso)
+  const d = dateOnly
+    ? new Date(...iso.split('-').map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))))
+    : new Date(iso)
+  return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function InfoList({ title, items, render }) {
@@ -50,8 +58,10 @@ export default function PatientDetail() {
   issues.forEach((i) => { if (i.type === 'conflict') hotTopics[i.topic] = true })
   const shown = filter === 'completed' ? [] : issues.filter((i) => filter === 'all' || i.type === filter)
   const notes = [...p.notes].sort((a, b) => b.seq - a.seq)
-  const log = p.log || []
-  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0, completed: log.length }
+  // Ongoing/failed entries (escalated, added notes, failed FHIR writes) are
+  // excluded — only genuinely resolved actions belong on a Completed tab.
+  const completedLog = (p.log || []).filter((e) => e.resolved !== false)
+  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0, completed: completedLog.length }
   issues.forEach((i) => counts[i.type]++)
   const info = p.info
 
@@ -143,9 +153,9 @@ export default function PatientDetail() {
           ))}
         </div>
         {filter === 'completed' ? (
-          log.length ? (
+          completedLog.length ? (
             <ul className="log">
-              {log.map((e, k) => (
+              {completedLog.map((e, k) => (
                 <li key={k}>
                   <time>{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
                   {e.text}

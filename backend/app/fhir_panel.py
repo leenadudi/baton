@@ -364,17 +364,27 @@ async def _fetch_info_resources(fhir: FhirClient, fid: str) -> tuple[list, list,
     """Observation/Encounter/MedicationRequest/Condition/Procedure for the
     patient-info panel. Reference-only data — a flaky call here must not fail
     the whole panel load the way a missing fixture resource does, so it
-    degrades to an empty info section instead."""
+    degrades to an empty info section instead.
+
+    Observation is fetched once per category rather than one combined
+    category=a,b,c query: FhirClient.search()'s _count only bounds page size
+    (each search still pages up to MAX_RESOURCES=200), so a patient with
+    frequent vital-signs could otherwise fill the shared 200-item window and
+    push a rarely-drawn lab's only result out of it entirely. Fetching each
+    category into its own 200-item budget makes that impossible."""
     try:
-        return await asyncio.gather(
-            fhir.search("Observation", patient=fid,
-                       category="laboratory,social-history,vital-signs",
-                       _sort="-date", _count=200),
+        obs_by_category, encounters, medications, conditions, procedures = await asyncio.gather(
+            asyncio.gather(*(
+                fhir.search("Observation", patient=fid, category=cat, _sort="-date", _count=200)
+                for cat in OBS_CATEGORIES
+            )),
             fhir.search("Encounter", patient=fid, _sort="-date", _count=20),
             fhir.search("MedicationRequest", patient=fid, status="active", _count=50),
             fhir.search("Condition", patient=fid, **{"clinical-status": "active"}, _count=50),
             fhir.search("Procedure", patient=fid, _sort="-date", _count=50),
         )
+        observations = [obs for bucket in obs_by_category for obs in bucket]
+        return observations, encounters, medications, conditions, procedures
     except Exception:
         log.warning("Failed to fetch patient-info resources for %s", fid, exc_info=True)
         return [], [], [], [], []

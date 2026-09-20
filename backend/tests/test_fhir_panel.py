@@ -345,6 +345,40 @@ def test_build_patient_info_procedures_capped():
     assert len(info["procedures"]) == fhir_panel.RECENT_PROCEDURES_LIMIT
 
 
+class _CategoryAwareFhirClient:
+    """Actually respects the `category` search param, unlike FakeFhirClient
+    above — needed to prove Observation is fetched per-category rather than
+    with one combined category=a,b,c query that shares a single MAX_RESOURCES
+    budget across all three."""
+
+    def __init__(self, by_category: dict[str, list]):
+        self.by_category = by_category
+        self.category_calls: list[str] = []
+
+    async def search(self, resource_type, **params):
+        if resource_type == "Observation":
+            self.category_calls.append(params["category"])
+            return self.by_category.get(params["category"], [])
+        return []
+
+
+def test_observation_fetched_per_category_not_crowded_out():
+    # A rarely-drawn lab exists only far back in time; 200+ recent vital-signs
+    # entries would push it out of a single shared category=a,b,c,_count=200
+    # window. Fetching laboratory in its own call means it can't be crowded
+    # out by an unrelated category's volume.
+    rare_lab = _obs("laboratory", "Hemoglobin A1c", 6.1, "2020-01-01T00:00:00Z")
+    frequent_vitals = [_obs("vital-signs", "Heart rate", 70 + i, f"2026-09-{(i % 28) + 1:02d}T00:00:00Z")
+                      for i in range(250)]
+    fake = _CategoryAwareFhirClient({"laboratory": [rare_lab], "vital-signs": frequent_vitals})
+
+    observations, *_ = asyncio.run(fhir_panel._fetch_info_resources(fake, "42157"))
+
+    assert sorted(fake.category_calls) == sorted(fhir_panel.OBS_CATEGORIES)
+    names = {o["code"]["text"] for o in observations}
+    assert "Hemoglobin A1c" in names
+
+
 def test_careteam_fetched_and_filtered_by_fixture_tag(fresh_cache, monkeypatch):
     monkeypatch.setenv("PANEL_SOURCE", "fhir")
     fake = FakeFhirClient()
