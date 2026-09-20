@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -19,6 +20,8 @@ from app.fhir_client import FhirClient
 from app.rules import FIELDS, TOPICS
 
 PATIENT_IDS_FILE = REPO_ROOT / "dataset" / "patient_ids.json"
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Baton API")
 
@@ -260,8 +263,7 @@ async def _write(coro, pid: str):
     try:
         return await coro
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("FHIR write failed: %s", exc)
+        log.warning("FHIR write failed: %s", exc)
         state.log_act(pid, f"FHIR write failed: {exc}")
         return None
 

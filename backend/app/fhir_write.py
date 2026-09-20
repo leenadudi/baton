@@ -64,7 +64,7 @@ async def publish_brief(fhir: FhirClient, text: str) -> dict | None:
 
 async def record_adopt(fhir: FhirClient, fid: str, pid: str,
                        topic: str, value: str, text: str) -> dict | None:
-    if not enabled():
+    if not enabled() or not fid:
         return None
     return await fhir.create("Communication", {
         "resourceType": "Communication",
@@ -81,7 +81,7 @@ async def record_adopt(fhir: FhirClient, fid: str, pid: str,
 
 async def record_fill(fhir: FhirClient, fid: str, pid: str,
                       field: str, value: str) -> dict | None:
-    if not enabled():
+    if not enabled() or not fid:
         return None
     return await fhir.put("Task", f"baton-out-{pid}-field-{field}", {
         "resourceType": "Task",
@@ -97,7 +97,7 @@ async def record_fill(fhir: FhirClient, fid: str, pid: str,
 
 async def record_issue_owner(fhir: FhirClient, fid: str, pid: str,
                              issue_id: str, owner: str | None) -> dict | None:
-    if not enabled():
+    if not enabled() or not fid:
         return None
     task_id = f"baton-out-{pid}-owner-{_slug(issue_id)}"
     if not owner:
@@ -118,7 +118,7 @@ async def record_issue_owner(fhir: FhirClient, fid: str, pid: str,
 
 async def record_pending_owner(fhir: FhirClient, fid: str, pid: str,
                                name: str, owner: str) -> dict | None:
-    if not enabled():
+    if not enabled() or not fid:
         return None
     return await fhir.put("Task", f"baton-out-{pid}-pend-{_slug(name)}", {
         "resourceType": "Task",
@@ -135,7 +135,7 @@ async def record_pending_owner(fhir: FhirClient, fid: str, pid: str,
 
 async def record_blocker_action(fhir: FhirClient, fid: str, pid: str,
                                 bid: str, action: str) -> dict | None:
-    if not enabled():
+    if not enabled() or not fid:
         return None
     assert action in ("clear", "escalate")
     resource = {
