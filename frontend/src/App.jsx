@@ -72,6 +72,9 @@ function Profile({ chart, auth, onBrief, onTeam }) {
                 <div className="bits">
                   <span>Room <b>{p.room}</b></span>
                   <span>{p.dx}</span>
+                  {p.fhirPatientId && (
+                    <span>FHIR <b className="mono" translate="no">{p.fhirPatientId}</b></span>
+                  )}
                 </div>
               </div>
             </div>
@@ -85,7 +88,10 @@ function Profile({ chart, auth, onBrief, onTeam }) {
               <span className={`dch ${p.dischStatus}`}>
                 Discharge in {p.dischargeInH}h: {DS_LABEL[p.dischStatus]}
               </span>
-              <span className="vital" title="Handoff completeness">Handoff <b>{handoffProgress(p).pct}%</b></span>
+              <span className="vital hp" title={`${handoffProgress(p).done} of ${handoffProgress(p).total} handoff items in place`}>
+                Handoff <b>{handoffProgress(p).pct}%</b>
+                <span className="track"><span style={{ width: `${handoffProgress(p).pct}%` }} /></span>
+              </span>
             </div>
           </div>
         )}

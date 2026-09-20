@@ -19,7 +19,7 @@ body{background:var(--page);}
 
 /* ---- top nav (replaces the sidebar) ---- */
 .app{display:flex;flex-direction:column;min-height:100vh;}
-.topnav{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:12px 26px;min-height:var(--topnav-h);
+.topnav{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:12px 26px;min-height:66px;
   background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:7;}
 .tn-left{display:flex;align-items:center;gap:18px;flex:none;}
 .brand-lk{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
@@ -105,6 +105,9 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
   position:sticky;top:var(--topnav-h);z-index:6;}
 .pcontext .grp{gap:6px;}
 .pcontext .vital{margin:0;}
+.pcontext .hp{display:inline-flex;align-items:center;gap:8px;}
+.pcontext .hp .track{display:inline-block;width:56px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;}
+.pcontext .hp .track span{display:block;height:100%;background:var(--ok,#1f8a4c);}
 .pcontext .who{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   /* index.css styles a bare .who as a clickable author link; this one is
      just the patient identity block, so drop the affordances. */

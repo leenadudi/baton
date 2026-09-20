@@ -67,49 +67,6 @@ export default function PatientDetail({ patients, actions }) {
 
   return (
     <main>
-      <section className="panel pbar">
-        <div className="dhead">
-          <div>
-            <h2>{p.name}, {p.age}</h2>
-            <div className="sub">Room {p.room}. {p.dx}.</div>
-            {/* PRD 12 wants every flag traceable to a chart resource, so the FHIR id
-                is surfaced here. DOB and gender are deliberately NOT shown: the Synthea
-                patients currently mapped to these demo ids disagree with the narrative
-                age on all six (e.g. James O. reads 55 but his DOB gives 15), and showing
-                a visible contradiction is worse than omitting it. Restore once the
-                dataset mapping lines up. */}
-            {p.fhirPatientId && (
-              <div className="ident">
-                <span>FHIR <b translate="no">{p.fhirPatientId}</b></span>
-              </div>
-            )}
-            {/* Code status and allergies sit here, not in the checklist below: both are
-                high-severity fields and the two a nurse needs before acting. Missing ones
-                use the handoff colour, matching the amber card they also raise. */}
-            <div className="vitals">
-              <span className={`vital${p.handoff.codeStatus ? '' : ' warn'}`}>
-                {p.handoff.codeStatus
-                  ? <>Code status <b>{p.handoff.codeStatus}</b></>
-                  : 'Code status missing'}
-              </span>
-              <span className={`vital${p.handoff.allergies ? '' : ' warn'}`}>
-                {p.handoff.allergies
-                  ? <>Allergies <b>{p.handoff.allergies}</b></>
-                  : 'Allergies not documented'}
-              </span>
-              <span className={`dch ${st}`}>Discharge in {p.dischargeInH}h: {DS_LABEL[st]}</span>
-            </div>
-          </div>
-          <div className="meter">
-            <div className="lab"><span>Handoff completeness</span><b>{hp.pct}%</b></div>
-            <div className="track"><span style={{ width: `${hp.pct}%` }} /></div>
-            <div className="lab" style={{ marginTop: 4 }}>
-              <span>{hp.done} of {hp.total} items in place</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <div className="chips tabs" role="tablist" aria-label="Patient sections">
         <button
           role="tab" aria-selected={tab === 'tasks'}
