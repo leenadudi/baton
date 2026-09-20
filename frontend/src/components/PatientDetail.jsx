@@ -9,7 +9,7 @@ const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps
 
 export default function PatientDetail() {
   const { patientId } = useParams()
-  const { patients, actions, openDoctor } = useOutletContext()
+  const { patients, actions } = useOutletContext()
   const [filter, setFilter] = useState('all')
   const [tab, setTab] = useState('tasks')
   // Route component is reused across patients; reset the filter like the prototype does on select.
@@ -36,7 +36,6 @@ export default function PatientDetail() {
   const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0 }
   issues.forEach((i) => counts[i.type]++)
   const notes = [...p.notes].sort((a, b) => b.seq - a.seq)
-  const log = p.log || []
 
   return (
     <main>
@@ -76,35 +75,6 @@ export default function PatientDetail() {
       <>
       <section className="panel">
         <div className="sec-h">
-          <h3>What needs attention</h3>
-          <span className="hint">Highest priority first</span>
-        </div>
-        <div className="chips" role="group" aria-label="Filter issues">
-          {FILTERS.map(([f, label]) => (
-            <button
-              key={f}
-              className={`chip${filter === f ? ' on' : ''}`}
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-            >{label} ({counts[f]})</button>
-          ))}
-        </div>
-        {shown.length ? (
-          shown.map((i) => (
-            <IssueCard key={i.id} issue={i} actions={actions} />
-          ))
-        ) : (
-          <div className="empty">
-            <b>{issues.length ? 'Nothing in this filter' : 'No open coordination issues'}</b>
-            {issues.length
-              ? 'Switch filters to see the rest.'
-              : 'Instructions agree, the handoff is complete, and nothing is stuck.'}
-          </div>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="sec-h">
           <h3>Handoff checklist</h3>
           <span className="hint">What the next shift will be told</span>
         </div>
@@ -135,6 +105,35 @@ export default function PatientDetail() {
           })}
         </div>
       </section>
+
+      <section className="panel">
+        <div className="sec-h">
+          <h3>What needs attention</h3>
+          <span className="hint">Highest priority first</span>
+        </div>
+        <div className="chips" role="group" aria-label="Filter issues">
+          {FILTERS.map(([f, label]) => (
+            <button
+              key={f}
+              className={`chip${filter === f ? ' on' : ''}`}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
+            >{label} ({counts[f]})</button>
+          ))}
+        </div>
+        {shown.length ? (
+          shown.map((i) => (
+            <IssueCard key={i.id} issue={i} actions={actions} />
+          ))
+        ) : (
+          <div className="empty">
+            <b>{issues.length ? 'Nothing in this filter' : 'No open coordination issues'}</b>
+            {issues.length
+              ? 'Switch filters to see the rest.'
+              : 'Instructions agree, the handoff is complete, and nothing is stuck.'}
+          </div>
+        )}
+      </section>
       </>
       )}
 
@@ -164,25 +163,6 @@ export default function PatientDetail() {
           </div>
         ))}
         <AddNoteForm pid={p.id} actions={actions} />
-      </section>
-
-      <section className="panel">
-        <div className="sec-h"><h3>Activity</h3></div>
-        {log.length ? (
-          <ul className="log">
-            {log.slice(0, 12).map((e, k) => (
-              <li key={k}>
-                <time>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-                {e.by && (e.byId
-                  ? <button className="who" onClick={() => openDoctor({ id: e.byId, name: e.by })}>{e.by}</button>
-                  : <b>{e.by}</b>)}{e.by && ' · '}
-                {e.text}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div className="tag">Actions taken in Baton will show up here.</div>
-        )}
       </section>
       </>
       )}
