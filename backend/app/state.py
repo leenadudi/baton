@@ -1,54 +1,44 @@
-"""In-memory demo state, per browser session.
+"""Demo state facade over app.store.
 
-Each X-Session-Id header value gets an isolated state dict, so one judge's
-clicks never change another judge's panel or brief. Callers that send no
-header share the "default" bucket (keeps curl / old clients working).
-Restarting the server (or POST /demo/reset for that session) clears state.
-Sessions idle longer than SESSION_TTL_S are pruned to bound memory on the
-free host.
+Signed-in clinicians share the "unit" scope, so one doctor's actions update
+the panel every teammate sees; guests get an isolated "session:<id>" sandbox.
+Persistence is MongoDB when MONGODB_URI is set, in-memory otherwise — see
+app.store for the backend and docs/schema.md for the data model.
 """
 
 import time
 
-DEFAULT_SESSION = "default"
-SESSION_TTL_S = 6 * 60 * 60
+from app import store as _store
 
 
 def fresh() -> dict:
-    return {"added": {}, "filled": {}, "cleared": {}, "escalated": {},
-            "pendOwners": {}, "owners": {}, "log": {}, "nextSeq": 1000}
-
-
-STATES: dict[str, dict] = {}
-_SEEN: dict[str, float] = {}
-
-
-def _prune() -> None:
-    cutoff = time.time() - SESSION_TTL_S
-    for sid, seen in list(_SEEN.items()):
-        if seen < cutoff:
-            STATES.pop(sid, None)
-            _SEEN.pop(sid, None)
+    return _store.fresh()
 
 
 def for_session(sid: str | None) -> dict:
-    """The state dict for one session id (DEFAULT_SESSION when absent)."""
-    _prune()
-    sid = sid or DEFAULT_SESSION
-    _SEEN[sid] = time.time()
-    return STATES.setdefault(sid, fresh())
+    return _store.get_store().get_state(_store.session_scope(sid))
 
 
-def reset(sid: str | None = None) -> None:
-    sid = sid or DEFAULT_SESSION
-    STATES[sid] = fresh()
-    _SEEN[sid] = time.time()
+def for_scope(scope: str) -> dict:
+    return _store.get_store().get_state(scope)
+
+
+def save_scope(scope: str, s: dict) -> None:
+    _store.get_store().save_state(scope, s)
+
+
+def reset(scope: str) -> None:
+    _store.get_store().reset_state(scope)
 
 
 def reset_all() -> None:
-    STATES.clear()
-    _SEEN.clear()
+    _store.get_store().reset_all()
 
 
-def log_act(s: dict, pid: str, text: str) -> None:
-    s["log"].setdefault(pid, []).insert(0, {"at": time.time() * 1000, "text": text})
+def prune() -> None:
+    _store.get_store().prune()
+
+
+def log_act(s: dict, pid: str, text: str, by: str | None = None) -> None:
+    s["log"].setdefault(pid, []).insert(
+        0, {"at": time.time() * 1000, "text": text, "by": by})

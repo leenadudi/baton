@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from pathlib import Path
 
 import httpx
@@ -14,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
 from app import fhir_panel, panel, rules, state
+from app import store as store_mod
 from app.extract import extract
 from app.fhir_client import FhirClient
 from app.rules import FIELDS, TOPICS
@@ -101,7 +103,122 @@ async def extract_note(body: ExtractRequest) -> dict:
     return result
 
 
+# ---------- auth: email + password, bearer tokens (docs/schema.md) ----------
+
+
+class RegisterIn(BaseModel):
+    email: str
+    password: str
+    name: str
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+def _bearer(authorization: str | None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return None
+
+
+def _optional_doctor(authorization: str | None = Header(default=None)) -> dict | None:
+    token = _bearer(authorization)
+    return store_mod.get_store().user_for_token(token) if token else None
+
+
+def _require_doctor(doctor: dict | None = Depends(_optional_doctor)) -> dict:
+    if doctor is None:
+        raise HTTPException(401, "sign in required")
+    return doctor
+
+
+@app.post("/auth/register", status_code=201)
+def register(body: RegisterIn) -> dict:
+    st = store_mod.get_store()
+    email, name = body.email.strip().lower(), body.name.strip()
+    if "@" not in email:
+        raise HTTPException(422, "a valid email is required")
+    if not name:
+        raise HTTPException(422, "name is required")
+    if len(body.password) < store_mod.MIN_PASSWORD_LEN:
+        raise HTTPException(422, "password must be at least "
+                            f"{store_mod.MIN_PASSWORD_LEN} characters")
+    try:
+        doctor = st.create_user(email, name, body.password)
+    except store_mod.StoreError as exc:
+        raise HTTPException(409, str(exc))
+    return {"token": st.create_token(doctor["id"]), "doctor": doctor}
+
+
+@app.post("/auth/login")
+def login(body: LoginIn) -> dict:
+    st = store_mod.get_store()
+    u = st.user_by_email(body.email.strip().lower())
+    if u is None or not st.check_password(u, body.password):
+        raise HTTPException(401, "invalid email or password")
+    doctor = {"id": u["id"], "name": u["name"], "email": u["email"]}
+    return {"token": st.create_token(doctor["id"]), "doctor": doctor}
+
+
+@app.get("/auth/me")
+def auth_me(doctor: dict = Depends(_require_doctor)) -> dict:
+    return doctor
+
+
+@app.post("/auth/logout")
+def logout(authorization: str | None = Header(default=None)) -> dict:
+    token = _bearer(authorization)
+    if token:
+        store_mod.get_store().revoke_token(token)
+    return {"status": "ok"}
+
+
+@app.get("/doctors")
+def list_doctors() -> list:
+    return store_mod.get_store().list_doctors()
+
+
 # ---------- panel + demo mutation routes (PRD 8.1) ----------
+
+
+class _Ctx:
+    """Request context: the demo-state scope + the signed-in doctor (if any)."""
+
+    def __init__(self, scope: str, s: dict, doctor: dict | None) -> None:
+        self.scope, self.s, self.doctor = scope, s, doctor
+
+
+def _ctx(doctor: dict | None = Depends(_optional_doctor),
+         x_session_id: str | None = Header(default=None)):
+    """Signed-in clinicians share the unit; guests get a session sandbox."""
+    st = store_mod.get_store()
+    scope = store_mod.UNIT_SCOPE if doctor else store_mod.session_scope(x_session_id)
+    s = st.get_state(scope)
+    yield _Ctx(scope, s, doctor)
+    st.save_state(scope, s)
+    st.prune()
+
+
+def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
+            target: str | None = None) -> None:
+    doctor_name = ctx.doctor["name"] if ctx.doctor else "Guest"
+    if pid:
+        state.log_act(ctx.s, pid, text, by=doctor_name)
+    store_mod.get_store().record_action(ctx.scope, {
+        "at": int(time.time() * 1000),
+        "doctorId": ctx.doctor["id"] if ctx.doctor else None,
+        "doctorName": doctor_name,
+        "patientId": pid, "action": action, "target": target, "text": text})
+
+
+@app.get("/activity")
+def list_activity(patient: str | None = None, doctor: str | None = None,
+                  ctx: _Ctx = Depends(_ctx)) -> list:
+    """Audit trail for the caller's scope, newest first."""
+    return store_mod.get_store().list_actions(
+        ctx.scope, patient_id=patient, doctor_id=doctor)
 
 
 class NoteIn(BaseModel):
@@ -122,11 +239,6 @@ async def _panel_ready() -> None:
     await fhir_panel.ensure_loaded(fhir)
 
 
-def _session(x_session_id: str | None = Header(default=None)) -> dict:
-    """Per-browser demo state: X-Session-Id keeps each judge's panel isolated."""
-    return state.for_session(x_session_id)
-
-
 def _patient_or_404(pid: str) -> dict:
     p = panel.get_patient(pid)
     if p is None:
@@ -143,19 +255,19 @@ def _issue_or_404(pid: str, issue_id: str, s: dict) -> dict:
 
 
 @app.get("/patients")
-async def list_panel_patients(s: dict = Depends(_session)) -> list[dict]:
+async def list_panel_patients(ctx: _Ctx = Depends(_ctx)) -> list[dict]:
     await _panel_ready()
-    return [panel.build_patient(p, s) for p in panel.load_patients()]
+    return [panel.build_patient(p, ctx.s) for p in panel.load_patients()]
 
 
 @app.get("/patients/{pid}")
-async def get_panel_patient(pid: str, s: dict = Depends(_session)) -> dict:
+async def get_panel_patient(pid: str, ctx: _Ctx = Depends(_ctx)) -> dict:
     await _panel_ready()
-    return panel.build_patient(_patient_or_404(pid), s)
+    return panel.build_patient(_patient_or_404(pid), ctx.s)
 
 
 @app.post("/patients/{pid}/notes")
-async def add_note(pid: str, body: NoteIn, s: dict = Depends(_session)) -> dict:
+async def add_note(pid: str, body: NoteIn, ctx: _Ctx = Depends(_ctx)) -> dict:
     await _panel_ready()
     p = _patient_or_404(pid)
     if body.topic:
@@ -171,33 +283,36 @@ async def add_note(pid: str, body: NoteIn, s: dict = Depends(_session)) -> dict:
         text = body.text
     else:
         raise HTTPException(422, "provide topic+value or free text")
-    note = {"role": body.role, "author": body.author or f"{body.role} (you)",
-            "text": text, "tags": tags}
+    author = body.author or (ctx.doctor["name"] if ctx.doctor
+                             else f"{body.role} (you)")
+    note = {"role": body.role, "author": author, "text": text, "tags": tags}
     if body.reconcile:
         note["reconcile"] = True
-    panel.add_note(pid, note, s)
+    panel.add_note(pid, note, ctx.s)
     suffix = f" ({TOPICS[body.topic]['label']}: {body.value})" if body.topic else ""
-    state.log_act(s, pid, f"Added {body.role} note{suffix}")
-    return panel.build_patient(p, s)
+    _record(ctx, pid, f"Added {body.role} note{suffix}", "addNote")
+    return panel.build_patient(p, ctx.s)
 
 
 @app.patch("/issues/{issue_id}")
 async def patch_issue(issue_id: str, body: IssuePatch,
-                      s: dict = Depends(_session)) -> dict:
+                      ctx: _Ctx = Depends(_ctx)) -> dict:
     await _panel_ready()
     parts = issue_id.split(":", 2)
     pid = parts[0] if len(parts) == 3 else issue_id.split(":")[0]
     p = _patient_or_404(pid)
-    S = s
+    S = ctx.s
     kind, rest = (parts[1], parts[2]) if len(parts) == 3 else (None, None)
 
     if body.action == "owner":
         issue = _issue_or_404(pid, issue_id, S)
         if body.value:
             S["owners"][issue_id] = body.value
-            state.log_act(S, pid, f'Assigned "{issue["title"]}" to {body.value}')
+            _record(ctx, pid, f'Assigned "{issue["title"]}" to {body.value}',
+                    "owner", issue_id)
         else:
             S["owners"].pop(issue_id, None)
+            _record(ctx, pid, f'Unassigned "{issue["title"]}"', "owner", issue_id)
     elif body.action == "fill":
         if kind != "handoff" or rest not in {f["key"] for f in FIELDS}:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -206,7 +321,8 @@ async def patch_issue(issue_id: str, body: IssuePatch,
             raise HTTPException(422, "value is required to fill a handoff field")
         S["filled"].setdefault(pid, {})[rest] = body.value
         label = next(f["label"] for f in FIELDS if f["key"] == rest)
-        state.log_act(S, pid, f"Added {label} to handoff")
+        _record(ctx, pid, f"Added {label} to handoff: {body.value}",
+                "fill", issue_id)
     elif body.action == "pendingOwner":
         if kind != "handoff" or not rest or not rest.startswith("pend:"):
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -215,7 +331,8 @@ async def patch_issue(issue_id: str, body: IssuePatch,
         if not body.value:
             raise HTTPException(422, "value is required to assign an owner")
         S["pendOwners"][f"{pid}|{name}"] = body.value
-        state.log_act(S, pid, f"Assigned {name} follow-up to {body.value}")
+        _record(ctx, pid, f"Assigned {name} follow-up to {body.value}",
+                "pendingOwner", issue_id)
     elif body.action in ("clear", "escalate"):
         if kind != "blocker" or not rest:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -224,10 +341,12 @@ async def patch_issue(issue_id: str, body: IssuePatch,
             raise HTTPException(404, f"unknown issue: {issue_id}")
         if body.action == "clear":
             S["cleared"].setdefault(pid, {})[rest] = True
-            state.log_act(S, pid, f"Cleared blocker: {blocker['label']}")
+            _record(ctx, pid, f"Cleared blocker: {blocker['label']}",
+                    "clear", issue_id)
         else:
             S["escalated"][f"{pid}|{rest}"] = True
-            state.log_act(S, pid, f"Escalated blocker: {blocker['label']}")
+            _record(ctx, pid, f"Escalated blocker: {blocker['label']}",
+                    "escalate", issue_id)
     elif body.action == "adopt":
         if kind != "conflict" or rest not in TOPICS:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -236,24 +355,30 @@ async def patch_issue(issue_id: str, body: IssuePatch,
             raise HTTPException(422, f"invalid value for {topic}: {body.value}")
         label = TOPICS[topic]["label"]
         panel.add_note(pid, {
-            "role": "Attending decision", "author": "Reconciled in Baton",
+            "role": "Attending decision",
+            "author": ctx.doctor["name"] if ctx.doctor else "Reconciled in Baton",
             "text": f"Reconciled {label}: proceed with {body.value}. "
                     "Earlier conflicting instructions are superseded.",
-            "tags": [[topic, body.value]], "reconcile": True}, s)
-        state.log_act(S, pid, f"Reconciled {label} to {body.value}")
-    return panel.build_patient(p, s)
+            "tags": [[topic, body.value]], "reconcile": True}, S)
+        _record(ctx, pid, f"Reconciled {label} to {body.value}",
+                "adopt", issue_id)
+    return panel.build_patient(p, ctx.s)
 
 
 @app.get("/brief", response_class=PlainTextResponse)
-async def get_brief(s: dict = Depends(_session)) -> str:
+async def get_brief(ctx: _Ctx = Depends(_ctx)) -> str:
     await _panel_ready()
-    return panel.brief_text(s)
+    return panel.brief_text(ctx.s)
 
 
 @app.post("/demo/reset")
-async def demo_reset(s: dict = Depends(_session)) -> dict:
-    s.clear()
-    s.update(state.fresh())
+async def demo_reset(ctx: _Ctx = Depends(_ctx)) -> dict:
+    """Reset the caller's scope — the shared unit when signed in."""
+    st = store_mod.get_store()
+    st.reset_state(ctx.scope)
+    ctx.s.clear()
+    ctx.s.update(state.fresh())  # so the request teardown persists fresh state
+    _record(ctx, None, "Reset the demo", "reset")
     return {"status": "ok"}
 
 

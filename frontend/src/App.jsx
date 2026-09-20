@@ -1,14 +1,21 @@
-import { useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useAuth } from './state/useAuth.js'
 import { useChart } from './state/useChart.js'
 import SummaryTiles from './components/SummaryTiles.jsx'
 import PatientList from './components/PatientList.jsx'
 import PatientDetail from './components/PatientDetail.jsx'
 import BriefModal from './components/BriefModal.jsx'
+import LoginScreen from './components/LoginScreen.jsx'
+import TeamModal from './components/TeamModal.jsx'
+
+const AuthCtx = createContext(null)
 
 function Panel() {
-  const { patients, status, actions } = useChart()
+  const { doctor, logout, onSignIn } = useContext(AuthCtx)
+  const { patients, status, actions } = useChart(doctor)
   const [brief, setBrief] = useState(null)
+  const [team, setTeam] = useState(false)
 
   const openBrief = () => actions.getBrief().then(setBrief)
 
@@ -41,8 +48,17 @@ function Panel() {
           <span className="pill" title={status === 'api' ? 'Issues computed by the backend rule engine' : 'Backend unreachable — running the local demo engine'}>
             {status === 'api' ? 'Live chart' : 'Offline demo data'}
           </span>
+          {doctor ? (
+            <span className="pill" title="Sharing the unit view with your team">Signed in as <b>{doctor.name}</b></span>
+          ) : (
+            <span className="pill" title="Your changes are private to this browser">Guest sandbox</span>
+          )}
+          <button className="btn" onClick={() => setTeam(true)}>Team activity</button>
           <button className="btn primary" onClick={openBrief}>Shift brief</button>
           <button className="btn ghost" onClick={actions.reset}>Reset demo</button>
+          {doctor
+            ? <button className="btn ghost" onClick={logout}>Sign out</button>
+            : <button className="btn ghost" onClick={onSignIn}>Sign in</button>}
         </div>
       </header>
 
@@ -78,6 +94,7 @@ function Panel() {
       {brief !== null && (
         <BriefModal text={brief} onClose={() => setBrief(null)} />
       )}
+      {team && <TeamModal patients={patients} onClose={() => setTeam(false)} />}
     </div>
   )
 }
@@ -94,14 +111,43 @@ function SelectPrompt() {
 }
 
 export default function App() {
+  const auth = useAuth()
+  const [guest, setGuest] = useState(false)
+
+  if (auth.doctor === undefined) {
+    return (
+      <div className="wrap">
+        <p className="intro" role="status" aria-live="polite">Loading…</p>
+      </div>
+    )
+  }
+
+  if (!auth.doctor && !guest) {
+    return (
+      <LoginScreen
+        onLogin={auth.login}
+        onRegister={auth.register}
+        onGuest={() => setGuest(true)}
+      />
+    )
+  }
+
+  const ctx = {
+    ...auth,
+    onSignIn: () => setGuest(false),
+    logout: () => { auth.logout(); setGuest(false) },
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/patients" replace />} />
-      <Route path="/patients" element={<Panel />}>
-        <Route index element={<SelectPrompt />} />
-        <Route path=":patientId" element={<PatientDetail />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/patients" replace />} />
-    </Routes>
+    <AuthCtx.Provider value={ctx}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/patients" replace />} />
+        <Route path="/patients" element={<Panel />}>
+          <Route index element={<SelectPrompt />} />
+          <Route path=":patientId" element={<PatientDetail />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/patients" replace />} />
+      </Routes>
+    </AuthCtx.Provider>
   )
 }

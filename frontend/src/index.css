@@ -202,3 +202,13 @@ a.pt{text-decoration:none;color:inherit;}
 .ov{overscroll-behavior:contain;}
 /* Skip the 300ms double-tap delay on touch. */
 button,.chip,.pt,.btn{touch-action:manipulation;}
+
+/* Auth gate + search + team activity */
+.auth{max-width:520px;margin:0 auto;padding-top:8vh;}
+.auth-card{margin-top:20px;}
+.auth-card h2{font-family:var(--head);margin:0 0 6px;font-size:20px;}
+.auth-card .form{display:flex;flex-direction:column;gap:10px;margin:14px 0 4px;}
+.auth-err{color:#b3261e;font-size:13px;}
+.search{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;margin:0 0 8px;color:var(--ink);}
+.team-log{max-height:320px;overflow-y:auto;margin-top:10px;}
+.log li b{color:var(--ink);font-weight:600;}

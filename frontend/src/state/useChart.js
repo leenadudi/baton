@@ -28,18 +28,29 @@ function normalize(p, s) {
   }
 }
 
-export function useChart() {
+export function useChart(doctor) {
   const [mockState, mockActions] = useDemoState()
   const [served, setServed] = useState(null)
   const [status, setStatus] = useState('loading') // loading | api | mock
 
+  // Refetch when auth changes: signing in switches from the guest sandbox to
+  // the shared unit state on the server.
   useEffect(() => {
     let live = true
     api.listPatients()
       .then((ps) => { if (live) { setServed(ps); setStatus('api') } })
       .catch(() => { if (live) setStatus('mock') })
     return () => { live = false }
-  }, [])
+  }, [doctor])
+
+  // Signed-in clinicians share the unit — poll so a teammate's actions show up.
+  useEffect(() => {
+    if (status !== 'api' || !doctor) return undefined
+    const t = setInterval(() => {
+      api.listPatients().then(setServed).catch(() => {})
+    }, 8000)
+    return () => clearInterval(t)
+  }, [status, doctor])
 
   const patients = useMemo(
     () => (status === 'api' && served ? served : PATIENTS.map((p) => normalize(p, mockState))),

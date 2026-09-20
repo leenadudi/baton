@@ -1,12 +1,23 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { DS_LABEL } from '../data/chart.js'
 
 export default function PatientList({ patients }) {
-  const sorted = [...patients].sort((a, b) => b.risk - a.risk)
+  const [q, setQ] = useState('')
+  const query = q.trim().toLowerCase()
+  const sorted = [...patients]
+    .filter((p) => !query || [p.name, p.dx, p.room].some((v) =>
+      String(v).toLowerCase().includes(query)))
+    .sort((a, b) => b.risk - a.risk)
 
   return (
     <nav className="list" aria-label="Patients">
       <h2>Patients by risk</h2>
+      <input
+        className="search" value={q} onChange={(e) => setQ(e.target.value)}
+        placeholder="Search patients…" aria-label="Search patients"
+      />
+      {!sorted.length && <div className="tag">No patients match “{q}”.</div>}
       {sorted.map((p) => {
         const st = p.dischStatus
         const c = p.issues.filter((i) => i.type === 'conflict').length

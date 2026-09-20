@@ -153,6 +153,7 @@ export default function PatientDetail() {
             {log.slice(0, 12).map((e, k) => (
               <li key={k}>
                 <time>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
+                {e.by && <b>{e.by} · </b>}
                 {e.text}
               </li>
             ))}
