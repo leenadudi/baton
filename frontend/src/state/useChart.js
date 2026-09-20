@@ -10,7 +10,10 @@ import { FIELDS, PATIENTS } from '../data/chart.js'
 import { allNotes, briefText, dischStatus, getIssues, riskOf } from '../lib/rules.js'
 import { useDemoState } from './useDemoState.js'
 
-const COLD_START_MS = 6000
+// Render Free cold starts measured at ~15s. Six seconds of a bare loading line
+// reads as broken, so fall back to the local engine quickly and let the live
+// response upgrade the panel whenever it lands.
+const COLD_START_MS = 2000
 
 // Reshape a mock patient + demo state into exactly what GET /patients returns.
 function normalize(p, s) {

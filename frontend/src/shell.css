@@ -1,0 +1,157 @@
+/* ---------------------------------------------------------------------------
+   App shell — dashboard + patient profile layout, modelled on the reference
+   screenshots. Layered on top of index.css: the semantic colour system
+   (--conflict / --handoff / --blocker) and the type stack are unchanged, so
+   issue cards, chips and badges keep reading exactly as they did.
+   --------------------------------------------------------------------------- */
+:root{
+  --nav:#141f3d; --nav-2:#1e2c52; --nav-ink:#e6ecf9; --nav-ink-2:#8d9cc2;
+  --page:#eef1f7; --nav-on:#ffffff;
+  --card-shadow:0 1px 2px rgb(16 26 48 / 6%), 0 8px 24px rgb(16 26 48 / 5%);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --page:#0b141c; --nav-on:#e6ecf9; --card-shadow:0 1px 2px rgb(0 0 0 / 30%); }
+}
+:root[data-theme="dark"]{ --page:#0b141c; --nav-on:#e6ecf9; --card-shadow:0 1px 2px rgb(0 0 0 / 30%); }
+
+body{background:var(--page);}
+
+.app{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh;}
+.app.iconrail{grid-template-columns:76px minmax(0,1fr);}
+
+/* ---- sidebar ---- */
+.side{background:var(--nav);color:var(--nav-ink);padding:18px 14px;
+  display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto;}
+.side-brand{display:flex;align-items:center;gap:11px;padding:0 4px 16px;}
+.side-brand .mark{width:38px;height:38px;flex:none;}
+.side-brand .n{font-family:var(--head);font-weight:700;font-size:19px;line-height:1.1;}
+.side-brand .u{font-size:12px;color:var(--nav-ink-2);}
+.side-search{display:flex;align-items:center;gap:8px;background:var(--nav-2);
+  border:1px solid transparent;border-radius:10px;padding:8px 10px;margin-bottom:14px;}
+.side-search input{background:none;border:0;outline:none;color:var(--nav-ink);width:100%;font-size:14px;}
+.side-search input::placeholder{color:var(--nav-ink-2);}
+.side-search:focus-within{border-color:var(--nav-ink-2);}
+.side-lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--nav-ink-2);
+  padding:10px 8px 6px;}
+.nav-i{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:none;border:0;border-radius:10px;padding:9px 10px;font-size:14px;
+  color:var(--nav-ink-2);text-decoration:none;}
+.nav-i:hover{background:var(--nav-2);color:var(--nav-ink);}
+.nav-i.on{background:var(--nav-on);color:var(--nav);font-weight:600;}
+.nav-i .ico{width:18px;height:18px;flex:none;}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--nav-2);font-size:12px;color:var(--nav-ink-2);}
+
+/* icon-only rail on the patient profile */
+.iconrail .side{align-items:center;padding:18px 8px;}
+.iconrail .side-brand{padding:0 0 18px;}
+.iconrail .side-brand>div,.iconrail .side-search,.iconrail .side-lbl,
+.iconrail .nav-i span,.iconrail .side-foot{display:none;}
+.iconrail .nav-i{justify-content:center;padding:11px;}
+
+/* ---- top bar ---- */
+.main{min-width:0;display:flex;flex-direction:column;}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between;
+  padding:18px 26px;background:var(--surface);border-bottom:1px solid var(--line);}
+.topbar h1{font-size:22px;}
+.topbar .sub{color:var(--ink-2);font-size:13px;margin-top:2px;}
+.topbar .grp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.back{display:inline-flex;align-items:center;gap:8px;background:none;border:0;
+  color:inherit;font-family:var(--head);font-weight:700;font-size:22px;text-decoration:none;}
+.back .ico{width:20px;height:20px;}
+.content{padding:22px 26px 60px;display:flex;flex-direction:column;gap:18px;}
+
+/* ---- KPI cards ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:16px;}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:16px 18px;box-shadow:var(--card-shadow);}
+.stat .k{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:13.5px;color:var(--ink-2);}
+.stat .v{font-family:var(--head);font-weight:700;font-size:38px;line-height:1;margin-top:10px;
+  font-variant-numeric:tabular-nums;}
+.stat .note{color:var(--ink-2);font-size:12.5px;margin-top:8px;}
+.stat .seg{display:flex;height:7px;border-radius:99px;overflow:hidden;margin-top:12px;gap:2px;background:var(--surface-2);}
+.stat .seg i{display:block;}
+.stat.s-conflict .v{color:var(--conflict);} .stat.s-handoff .v{color:var(--handoff);}
+.stat.s-blocker  .v{color:var(--blocker);} .stat.s-warn .v{color:var(--ink);}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+/* ---- patient table ---- */
+.tablecard{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  box-shadow:var(--card-shadow);overflow:hidden;}
+.tc-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  padding:16px 18px 12px;}
+.tc-head h2{font-family:var(--head);font-size:17px;margin:0;}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface-2);border-radius:999px;padding:4px;}
+.tab{border:0;background:none;border-radius:999px;padding:6px 14px;font-size:13.5px;color:var(--ink-2);}
+.tab:hover{color:var(--ink);}
+.tab.on{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--card-shadow);}
+.tscroll{overflow-x:auto;}
+table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px;}
+.pt-table th{text-align:left;font-weight:500;font-size:12.5px;color:var(--ink-2);
+  padding:10px 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:var(--surface-2);white-space:nowrap;}
+.pt-table th.num,.pt-table td.num{text-align:center;}
+.pt-table td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+.pt-table tbody tr:hover{background:var(--surface-2);}
+.pt-table tbody tr:last-child td{border-bottom:0;}
+.pt-table a.who{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
+.pt-table .rm{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);
+  border:1px solid var(--line);padding:1px 7px;border-radius:5px;white-space:nowrap;}
+.pt-table .nm{font-weight:600;}
+.pt-table .meta{font-size:12.5px;color:var(--ink-2);}
+.pt-table .dxc{color:var(--ink-2);max-width:280px;}
+.ini{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;
+  font-size:13px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--ink-2);font-family:var(--mono);}
+.riskbar{width:70px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;}
+.riskbar span{display:block;height:100%;background:var(--conflict);border-radius:99px;}
+
+/* ---- patient profile ---- */
+.pcontext{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;
+  padding:14px 26px;background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:6;}
+.pcontext .who{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.pcontext .ini{width:40px;height:40px;font-size:14px;background:var(--handoff-bg);
+  color:var(--handoff);border-color:var(--handoff);}
+.pcontext .nm{font-family:var(--head);font-weight:700;font-size:20px;}
+.pcontext .bits{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--ink-2);}
+.pcontext .bits b{color:var(--ink);font-weight:600;}
+.pcontext .bits .mono{font-family:var(--mono);font-size:12px;}
+.vsep{width:1px;height:26px;background:var(--line);}
+
+@media (max-width: 1000px){
+  .app,.app.iconrail{grid-template-columns:76px minmax(0,1fr);}
+  .app .side-brand>div,.app .side-search,.app .side-lbl,
+  .app .nav-i span,.app .side-foot{display:none;}
+  .app .side{align-items:center;padding:18px 8px;}
+  .app .nav-i{justify-content:center;padding:11px;}
+}
+@media (max-width: 720px){
+  .app,.app.iconrail{grid-template-columns:minmax(0,1fr);}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;overflow-x:auto;}
+  .side-brand{padding:0 8px 0 0;}
+  .topbar,.pcontext,.content{padding-left:14px;padding-right:14px;}
+  .pcontext{position:static;}
+}
+
+/* Tab group + sort control sit together on the table header. */
+.tc-head-ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.sortby{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);}
+.sortby select{border:1px solid var(--line);background:var(--surface);border-radius:9px;
+  padding:6px 9px;color:var(--ink);font-size:13.5px;}
+
+/* Identity in the rail: signed-in clinicians share the unit, guests do not, and
+   that difference changes what every action does — so it stays visible. */
+.side-who{margin-top:auto;padding:12px 0 10px;border-top:1px solid var(--nav-2);
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.side-who+.side-foot{margin-top:0;}
+.side-who .n{font-size:13px;font-weight:600;color:var(--nav-ink);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.side-who .lnk{border:0;background:none;padding:0;font:inherit;font-size:12.5px;
+  color:var(--nav-ink-2);cursor:pointer;text-decoration:underline;flex:none;}
+.side-who .lnk:hover{color:var(--nav-ink);}
+.iconrail .side-who{display:none;}
+@media (max-width: 1000px){
+  /* Rail collapses to icons here and .side-foot goes with it; identity follows. */
+  .app .side-who{display:none;}
+}
