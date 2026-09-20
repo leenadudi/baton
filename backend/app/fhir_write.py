@@ -7,6 +7,7 @@ import html
 import logging
 import os
 import re
+import uuid
 from datetime import datetime, timezone
 
 from app.fhir_client import FhirClient
@@ -45,7 +46,7 @@ def _now() -> str:
 
 
 def _stamp() -> str:
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    return f"{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
 
 
 def _id_part(s: str) -> str:
