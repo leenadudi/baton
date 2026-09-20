@@ -265,3 +265,43 @@ def test_unit_reset_records_action():
     acts = client.get("/activity", headers=ha).json()
     assert [a["action"] for a in acts] == ["reset"]
     assert acts[0]["doctorName"] == "Dr. Paging"
+
+
+def test_suggest_rule_fallback_without_key():
+    """With no OPENAI_API_KEY the suggest endpoint serves the deterministic
+    rule-based text — the demo must never depend on the model being up."""
+    resp = client.post("/issues/p1:conflict:anticoagulation/suggest")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["source"] == "rules"
+    assert body["text"]
+    # A suggestion for a conflict must never pick a winner.
+    assert "reconcile" in body["text"].lower()
+
+
+def test_suggest_blocker_and_handoff_fallbacks():
+    resp = client.post("/issues/p1:blocker:b1/suggest")
+    assert resp.status_code == 200
+    assert resp.json()["source"] == "rules"
+    resp = client.post("/issues/p1:handoff:followUpOwner/suggest")
+    assert resp.status_code == 200
+    assert resp.json()["source"] == "rules"
+
+
+def test_suggest_unknown_issue_404():
+    assert client.post("/issues/p1:conflict:nonsense/suggest").status_code == 404
+
+
+def test_suggest_sees_scope_state():
+    """The suggestion fingerprint covers issue state — an escalated blocker
+    gets a different suggestion than an untouched one, scoped per caller."""
+    ha, _ = signup()
+    base = client.post("/issues/p1:blocker:b1/suggest", headers=ha).json()
+    client.patch("/issues/p1:blocker:b1", json={"action": "escalate"}, headers=ha)
+    esc = client.post("/issues/p1:blocker:b1/suggest", headers=ha).json()
+    assert esc["text"] != base["text"]
+    assert "escalat" in esc["text"].lower()
+    # A guest's sandbox still sees the un-escalated suggestion.
+    guest = client.post("/issues/p1:blocker:b1/suggest",
+                        headers={"X-Session-Id": "sug-guest"}).json()
+    assert guest["text"] == base["text"]

@@ -226,7 +226,7 @@ export default function PatientDetail() {
           )
         ) : shown.length ? (
           shown.map((i) => (
-            <IssueCard key={i.id} issue={i} actions={actions} />
+            <IssueCard key={i.id} issue={i} actions={actions} notes={notes} />
           ))
         ) : (
           <div className="empty">
