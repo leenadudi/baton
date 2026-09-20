@@ -9,6 +9,7 @@ import BriefModal from './components/BriefModal.jsx'
 function Panel() {
   const { patients, status, actions, fhirWrite } = useChart()
   const [brief, setBrief] = useState(null)
+  const [listOpen, setListOpen] = useState(true)
 
   const openBrief = () => actions.getBrief().then(setBrief)
 
@@ -41,6 +42,11 @@ function Panel() {
           <span className="pill" title={status === 'api' ? 'Issues computed by the backend rule engine' : 'Backend unreachable — running the local demo engine'}>
             {status === 'api' ? 'Live chart' : 'Offline demo data'}
           </span>
+          <button
+            className="btn ghost"
+            onClick={() => setListOpen((v) => !v)}
+            aria-pressed={!listOpen}
+          >{listOpen ? 'Hide list' : 'Show list'}</button>
           <button className="btn primary" onClick={openBrief}>Shift brief</button>
           <button className="btn ghost" onClick={actions.reset}>Reset demo</button>
         </div>
@@ -65,7 +71,7 @@ function Panel() {
 
       <SummaryTiles patients={patients} />
 
-      <div className="grid">
+      <div className={`grid${listOpen ? '' : ' solo'}`}>
         <PatientList patients={patients} />
         <Outlet context={{ patients, actions }} />
       </div>

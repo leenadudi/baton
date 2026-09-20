@@ -215,3 +215,21 @@ button,.chip,.pt,.btn{touch-action:manipulation;}
   /* The list rail already goes static here; a sticky header would eat the viewport. */
   .pbar{position:static;}
 }
+
+/* Identifying data under the patient name. */
+.ident{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12.5px;color:var(--ink-2);}
+.ident b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:12px;}
+
+/* Borrowed from the reference dashboards: align the rail into columns so Room,
+   name and the counts line up down the list instead of shifting with name length. */
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.legend{display:flex;gap:5px;}
+.legend .cnt{min-width:24px;font-weight:600;opacity:.75;}
+.pt .row1{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:baseline;}
+.pt .room,.pt .age,.cnt{font-variant-numeric:tabular-nums;}
+.pt .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pt .age{margin-left:0;}
+
+/* Collapse the rail to give a long conflict card the full width. */
+.grid.solo{grid-template-columns:minmax(0,1fr);}
+.grid.solo .list{display:none;}

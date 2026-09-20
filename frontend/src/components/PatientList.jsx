@@ -6,7 +6,13 @@ export default function PatientList({ patients }) {
 
   return (
     <nav className="list" aria-label="Patients">
-      <h2>Patients by risk</h2>
+      <div className="list-head">
+        <h2>Patients by risk</h2>
+        {/* The three count columns were only labelled by title tooltips. */}
+        <span className="legend" aria-hidden="true">
+          <i className="cnt c">C</i><i className="cnt h">H</i><i className="cnt b">B</i>
+        </span>
+      </div>
       {sorted.map((p) => {
         const st = p.dischStatus
         const c = p.issues.filter((i) => i.type === 'conflict').length

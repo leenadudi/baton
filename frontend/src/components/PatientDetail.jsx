@@ -72,6 +72,17 @@ export default function PatientDetail() {
           <div>
             <h2>{p.name}, {p.age}</h2>
             <div className="sub">Room {p.room}. {p.dx}.</div>
+            {/* PRD 12 wants every flag traceable to a chart resource, so the FHIR id
+                is surfaced here. DOB and gender are deliberately NOT shown: the Synthea
+                patients currently mapped to these demo ids disagree with the narrative
+                age on all six (e.g. James O. reads 55 but his DOB gives 15), and showing
+                a visible contradiction is worse than omitting it. Restore once the
+                dataset mapping lines up. */}
+            {p.fhirPatientId && (
+              <div className="ident">
+                <span>FHIR <b translate="no">{p.fhirPatientId}</b></span>
+              </div>
+            )}
             {/* Code status and allergies sit here, not in the checklist below: both are
                 high-severity fields and the two a nurse needs before acting. Missing ones
                 use the handoff colour, matching the amber card they also raise. */}
