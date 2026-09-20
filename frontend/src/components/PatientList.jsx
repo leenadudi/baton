@@ -17,7 +17,16 @@ const SORTS = [
 // What to call the work, by issue type. Issues arrive sorted highest-severity
 // first from both the API (backend rules.py:139) and the offline engine, so
 // issues[0] is the next thing to move on this patient.
-const NEXT_VERB = { conflict: 'Reconcile', handoff: 'Complete', blocker: 'Unblock' }
+// A missing handoff field and an unowned pending result are both "handoff"
+// issues but call for different work, so the verb comes from the issue rather
+// than the type alone.
+const isPending = (i) => /^Pending result has no owner:/.test(i.title)
+
+function nextVerb(i) {
+  if (i.type === 'conflict') return 'Reconcile'
+  if (i.type === 'blocker') return 'Unblock'
+  return isPending(i) ? 'Assign' : 'Fill in'
+}
 
 // Titles are written as full sentences for the issue cards, which is too long
 // for a table row. The verb chip carries the action, so strip the title down to
@@ -29,7 +38,7 @@ function shortAction(i) {
   }
   if (i.type === 'handoff') {
     const pending = i.title.match(/^Pending result has no owner: (.+)$/)
-    if (pending) return `owner for ${pending[1]}`
+    if (pending) return pending[1]
     return i.title.replace(/ is missing from the handoff$/, '')
   }
   return i.title
@@ -123,12 +132,17 @@ export default function PatientList({ patients, query }) {
                     {p.issues.length ? (
                       <>
                         <span className={`nverb ${p.issues[0].type}`}>
-                          {NEXT_VERB[p.issues[0].type]}
+                          {nextVerb(p.issues[0])}
                         </span>
                         <span className="ntitle" title={p.issues[0].title}>
                           {shortAction(p.issues[0])}
                         </span>
-                        {!p.issues[0].owner && <span className="nunowned">No owner</span>}
+                        {!p.issues[0].owner && (
+                          <span className="nunowned"
+                            title="No clinician has taken this on yet. Assign a role from the issue card.">
+                            Needs owner
+                          </span>
+                        )}
                       </>
                     ) : <span className="meta">Nothing open</span>}
                   </td>
