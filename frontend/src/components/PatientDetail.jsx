@@ -11,8 +11,9 @@ export default function PatientDetail() {
   const { patientId } = useParams()
   const { patients, actions, openDoctor } = useOutletContext()
   const [filter, setFilter] = useState('all')
+  const [tab, setTab] = useState('tasks')
   // Route component is reused across patients; reset the filter like the prototype does on select.
-  useEffect(() => setFilter('all'), [patientId])
+  useEffect(() => { setFilter('all'); setTab('tasks') }, [patientId])
   const p = patients.find((x) => x.id === patientId)
 
   if (!p) {
@@ -58,6 +59,21 @@ export default function PatientDetail() {
         </div>
       </section>
 
+      <div className="chips tabs" role="tablist" aria-label="Patient sections">
+        <button
+          role="tab" aria-selected={tab === 'tasks'}
+          className={`chip${tab === 'tasks' ? ' on' : ''}`}
+          onClick={() => setTab('tasks')}
+        >Tasks ({counts.all})</button>
+        <button
+          role="tab" aria-selected={tab === 'notes'}
+          className={`chip${tab === 'notes' ? ' on' : ''}`}
+          onClick={() => setTab('notes')}
+        >Orders &amp; notes</button>
+      </div>
+
+      {tab === 'tasks' && (
+      <>
       <section className="panel">
         <div className="sec-h">
           <h3>What needs attention</h3>
@@ -119,7 +135,11 @@ export default function PatientDetail() {
           })}
         </div>
       </section>
+      </>
+      )}
 
+      {tab === 'notes' && (
+      <>
       <section className="panel">
         <div className="sec-h">
           <h3>Orders and notes</h3>
@@ -164,6 +184,8 @@ export default function PatientDetail() {
           <div className="tag">Actions taken in Baton will show up here.</div>
         )}
       </section>
+      </>
+      )}
     </main>
   )
 }
