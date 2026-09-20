@@ -49,6 +49,16 @@ def is_fixture(r: dict) -> bool:
 
 _note_tags: dict[str, list] = {}
 
+# TODO(nicole): remove once the live FHIR fixture (dataset/fixtures/p1/
+# 06-DocumentReference-baton-p1-note-6.json) is re-pushed with the reworded
+# text below. Until then the public HAPI server still returns the old
+# wording, which would otherwise miss the ground-truth map and drop
+# Margaret's hosted SNF-vs-home conflict (the model correctly declines to
+# tag a family expectation as an order).
+_LEGACY_NOTE_TEXT_ALIASES = {
+    "Daughter says the family expects her to come home Friday.": [["destination", "home"]],
+}
+
 
 def _load_ground_truth() -> None:
     if _note_tags:
@@ -56,6 +66,8 @@ def _load_ground_truth() -> None:
     for p in demo_patients.DEMO_PATIENTS:
         for n in p["notes"]:
             _note_tags[n["text"].strip()] = [list(t) for t in n["tags"]]
+    for text, tags in _LEGACY_NOTE_TEXT_ALIASES.items():
+        _note_tags.setdefault(text, [list(t) for t in tags])
 
 
 def tags_lookup(text: str) -> list:
