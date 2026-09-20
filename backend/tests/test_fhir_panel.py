@@ -35,7 +35,7 @@ FAKE_PATIENT = {
 @pytest.fixture
 def p1_built():
     docrefs, tasks, consents, allergies = _load_fixtures()
-    overrides = {"fhirPatientId": "Patient/42157", "name": "Margaret A.", "age": 78,
+    overrides = {"fhirPatientId": "Patient/42157", "name": "Margaret Abbott", "age": 78,
                  "room": "412", "dx": "Hip fracture, ORIF post-op day 2", "dischargeInH": 30}
     return fhir_panel.build_patient_from_chart("p1", overrides, FAKE_PATIENT,
                                                docrefs, tasks, consents, allergies, NOW)

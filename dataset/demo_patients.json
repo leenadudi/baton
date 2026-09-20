@@ -2,7 +2,7 @@
   "_comment": "Persona -> loaded FHIR Patient mapping (issue #16, handoff Task 1). Loaded patients come from dataset/patient_ids.json on the public HAPI server; ages/sexes are approximate matches, names/rooms/dx are persona overrides the API layer applies when building the §8.3 panel object. Spare loaded patient: Patient/46315.",
   "p1": {
     "fhirPatientId": "Patient/42157",
-    "name": "Margaret A.",
+    "name": "Margaret Abbott",
     "age": 78,
     "gender": "female",
     "birthDate": "1948-03-14",
@@ -12,7 +12,7 @@
   },
   "p2": {
     "fhirPatientId": "Patient/44086",
-    "name": "Robert C.",
+    "name": "Robert Chen",
     "age": 64,
     "gender": "male",
     "birthDate": "1962-05-22",
@@ -22,7 +22,7 @@
   },
   "p3": {
     "fhirPatientId": "Patient/47767",
-    "name": "Priya S.",
+    "name": "Priya Sharma",
     "age": 41,
     "gender": "female",
     "birthDate": "1985-07-09",
@@ -32,7 +32,7 @@
   },
   "p4": {
     "fhirPatientId": "Patient/48900",
-    "name": "James O.",
+    "name": "James O'Brien",
     "age": 55,
     "gender": "male",
     "birthDate": "1971-01-30",
@@ -42,7 +42,7 @@
   },
   "p5": {
     "fhirPatientId": "Patient/44970",
-    "name": "Elena V.",
+    "name": "Elena Vasquez",
     "age": 83,
     "gender": "female",
     "birthDate": "1943-06-18",
@@ -52,7 +52,7 @@
   },
   "p6": {
     "fhirPatientId": "Patient/43825",
-    "name": "David L.",
+    "name": "David Larsen",
     "age": 29,
     "gender": "male",
     "birthDate": "1997-04-02",

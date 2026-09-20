@@ -94,8 +94,6 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .ini{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;
   font-size:13px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);
   color:var(--ink-2);font-family:var(--mono);}
-.riskbar{display:inline-block;width:70px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;vertical-align:middle;}
-.riskbar span{display:block;height:100%;background:var(--conflict);border-radius:99px;}
 
 /* ---- patient profile ---- */
 .pcontext{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;
@@ -145,5 +143,5 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .nunowned{flex:none;font-size:11.5px;color:var(--conflict);font-weight:600;}
 
 /* The bar alone gives a rough sense; the number is what people compare. */
-.riskcell{display:flex;align-items:center;gap:9px;}
-.riskcell b{font-variant-numeric:tabular-nums;font-weight:600;min-width:16px;}
+
+.pt-table td.eta{white-space:nowrap;font-variant-numeric:tabular-nums;}

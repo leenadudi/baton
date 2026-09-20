@@ -40,10 +40,6 @@ export default function PatientList({ patients, query }) {
       return b.risk - a.risk
     })
 
-  // Scale the bar to the worst score actually on screen; a fixed ceiling made
-  // every serious patient render as a full bar, which compares nothing.
-  const maxRisk = Math.max(1, ...patients.map((p) => p.risk || 0))
-
   const counts = { all: patients.length, risk: 0, watch: 0, ready: 0 }
   patients.forEach((p) => { counts[p.dischStatus]++ })
 
@@ -80,10 +76,10 @@ export default function PatientList({ patients, query }) {
               <th scope="col">Patient</th>
               <th scope="col" className="nact-h">Next action</th>
               <th scope="col">Discharge</th>
+              <th scope="col">Status</th>
               <th scope="col" className="num">Conflicts</th>
               <th scope="col" className="num">Gaps</th>
               <th scope="col" className="num">Blockers</th>
-              <th scope="col">Coordination risk</th>
             </tr>
           </thead>
           <tbody>
@@ -97,10 +93,7 @@ export default function PatientList({ patients, query }) {
                   <td>
                     <Link className="who" to={`/patients/${p.id}`}>
                       <span className="ini" aria-hidden="true">{initials(p.name)}</span>
-                      <span>
-                        <span className="nm">{p.name}</span>
-                        <span className="meta"> · {p.age}</span>
-                      </span>
+                      <span className="nm">{p.name}</span>
                     </Link>
                   </td>
                   <td className="nact">
@@ -116,22 +109,13 @@ export default function PatientList({ patients, query }) {
                       </>
                     ) : <span className="meta">Nothing open</span>}
                   </td>
+                  <td className="eta">{etaLabel(p.dischargeInH)}</td>
                   <td>
-                    <span className={`dch ${p.dischStatus}`}>
-                      {etaLabel(p.dischargeInH)} · {DS_LABEL[p.dischStatus]}
-                    </span>
+                    <span className={`dch ${p.dischStatus}`}>{DS_LABEL[p.dischStatus]}</span>
                   </td>
                   <td className="num"><i className={`cnt ${c ? 'c' : 'z'}`}>{c}</i></td>
                   <td className="num"><i className={`cnt ${h ? 'h' : 'z'}`}>{h}</i></td>
                   <td className="num"><i className={`cnt ${b ? 'b' : 'z'}`}>{b}</i></td>
-                  <td>
-                    <span className="riskcell">
-                      <b>{p.risk}</b>
-                      <span className="riskbar" role="img" aria-label={`Risk score ${p.risk}`}>
-                        <span style={{ width: `${Math.round((p.risk / maxRisk) * 100)}%` }} />
-                      </span>
-                    </span>
-                  </td>
                 </tr>
               )
             })}

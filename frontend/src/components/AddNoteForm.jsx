@@ -36,7 +36,7 @@ export default function AddNoteForm({ pid, actions }) {
   return (
     <>
       <h3 style={{ marginTop: 20, fontSize: 16 }}>Add an instruction</h3>
-      <div className="tag">Try it: on David L., add Diet: NPO as Dietitian and watch a conflict appear.</div>
+      <div className="tag">Try it: on David Larsen, add Diet: NPO as Dietitian and watch a conflict appear.</div>
       <div className="form">
         <label>From role
           <select value={form.role} onChange={set('role')}>

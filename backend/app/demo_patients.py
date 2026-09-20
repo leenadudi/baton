@@ -7,7 +7,7 @@ Each note's `seq` is assigned at import, matching the prototype's
 from app.rules import assign_seq
 
 DEMO_PATIENTS = [
-    {"id": "p1", "name": "Margaret A.", "age": 78, "room": "412",
+    {"id": "p1", "name": "Margaret Abbott", "age": 78, "room": "412",
      "dx": "Hip fracture, ORIF post-op day 2", "dischargeInH": 30,
      "handoff": {"codeStatus": "Full code", "allergies": "Penicillin (rash)",
                  "familyContact": "Daughter, on file", "followUpOwner": "",
@@ -39,7 +39,7 @@ DEMO_PATIENTS = [
           "text": "Discharge plan on care board: home Friday with daughter. Home health not yet arranged.",
           "tags": [["destination", "home"]]}]},
 
-    {"id": "p2", "name": "Robert C.", "age": 64, "room": "407",
+    {"id": "p2", "name": "Robert Chen", "age": 64, "room": "407",
      "dx": "Heart failure exacerbation, day 3", "dischargeInH": 20,
      "handoff": {"codeStatus": "", "allergies": "NKDA", "familyContact": "Wife, Linda",
                  "followUpOwner": "Cardiology clinic", "medRec": "Done by pharmacy"},
@@ -60,7 +60,7 @@ DEMO_PATIENTS = [
           "text": "Started 2 g sodium diet education with patient and wife.",
           "tags": [["diet", "cardiac 2g Na"]]}]},
 
-    {"id": "p3", "name": "Priya S.", "age": 41, "room": "305",
+    {"id": "p3", "name": "Priya Sharma", "age": 41, "room": "305",
      "dx": "Laparoscopic cholecystectomy, post-op day 1", "dischargeInH": 6,
      "handoff": {"codeStatus": "Full code", "allergies": "NKDA", "familyContact": "",
                  "followUpOwner": "Surgery clinic", "medRec": "Done by pharmacy"},
@@ -71,7 +71,7 @@ DEMO_PATIENTS = [
           "text": "Advance to regular diet as tolerated. Pain controlled on oral medication.",
           "tags": [["diet", "regular"]]}]},
 
-    {"id": "p4", "name": "James O.", "age": 55, "room": "418",
+    {"id": "p4", "name": "James O'Brien", "age": 55, "room": "418",
      "dx": "Diabetic ketoacidosis, resolved", "dischargeInH": 26,
      "handoff": {"codeStatus": "Full code", "allergies": "Sulfa (hives)",
                  "familyContact": "Partner, Sam", "followUpOwner": "Endocrinology",
@@ -87,7 +87,7 @@ DEMO_PATIENTS = [
           "text": "Carbohydrate-consistent diet. Reviewed meal timing with insulin.",
           "tags": [["diet", "carb-consistent"]]}]},
 
-    {"id": "p5", "name": "Elena V.", "age": 83, "room": "421",
+    {"id": "p5", "name": "Elena Vasquez", "age": 83, "room": "421",
      "dx": "Pneumonia, improving on day 4", "dischargeInH": 44,
      "handoff": {"codeStatus": "DNR/DNI", "allergies": "",
                  "familyContact": "Son, Marcus", "followUpOwner": "PCP Dr. Hale",
@@ -110,7 +110,7 @@ DEMO_PATIENTS = [
           "text": "MRSA screen negative. Precautions lifted and signage removed.",
           "tags": [["isolation", "none"]]}]},
 
-    {"id": "p6", "name": "David L.", "age": 29, "room": "310",
+    {"id": "p6", "name": "David Larsen", "age": 29, "room": "310",
      "dx": "Appendectomy, post-op day 1", "dischargeInH": 3,
      "handoff": {"codeStatus": "Full code", "allergies": "NKDA",
                  "familyContact": "Mother, on file", "followUpOwner": "Surgery clinic",
