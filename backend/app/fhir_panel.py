@@ -104,9 +104,186 @@ def _decode_docref_text(dr: dict) -> str:
     return ""
 
 
+def _coding_text(concept: dict | None) -> str:
+    if not concept:
+        return ""
+    if concept.get("text"):
+        return concept["text"]
+    return (concept.get("coding") or [{}])[0].get("display", "")
+
+
+OBS_CATEGORIES = ("laboratory", "social-history", "vital-signs")
+
+
+def _obs_category(obs: dict) -> str | None:
+    for cat in obs.get("category", []):
+        for coding in cat.get("coding", []):
+            if coding.get("code") in OBS_CATEGORIES:
+                return coding["code"]
+    return None
+
+
+def _obs_value(obs: dict) -> str:
+    if "valueQuantity" in obs:
+        vq = obs["valueQuantity"]
+        return f"{vq.get('value', '')} {vq.get('unit', '')}".strip()
+    if "valueCodeableConcept" in obs:
+        return _coding_text(obs["valueCodeableConcept"])
+    if "valueString" in obs:
+        return obs["valueString"]
+    # Multi-component vitals (e.g. blood pressure: separate systolic/diastolic
+    # components, no top-level value) — join each component's own value.
+    if obs.get("component"):
+        parts = []
+        for c in obs["component"]:
+            vq = c.get("valueQuantity") or {}
+            if vq.get("value") is not None:
+                parts.append(f"{_coding_text(c.get('code'))}: {vq['value']} {vq.get('unit', '')}".strip())
+        return "; ".join(parts)
+    return ""
+
+
+def _obs_date(obs: dict) -> str | None:
+    return obs.get("effectiveDateTime") or obs.get("issued")
+
+
+PERIOD_UNIT_WORDS = {"d": "day", "h": "hr", "wk": "week", "mo": "month"}
+
+
+def _dosage_text(m: dict) -> str:
+    """Prefer dosageInstruction.text; Synthea usually omits it, so fall back
+    to formatting the structured doseAndRate/timing fields it does provide."""
+    dosage = (m.get("dosageInstruction") or [{}])[0]
+    if dosage.get("text"):
+        return dosage["text"]
+    bits = []
+    for dr in dosage.get("doseAndRate", []):
+        q = dr.get("doseQuantity") or {}
+        if q.get("value") is not None and q.get("unit"):
+            bits.append(f"{q['value']} {q['unit']}")
+    repeat = (dosage.get("timing") or {}).get("repeat") or {}
+    freq, period, unit = repeat.get("frequency"), repeat.get("period"), repeat.get("periodUnit")
+    if freq and period and unit:
+        unit_word = PERIOD_UNIT_WORDS.get(unit, unit)
+        bits.append(f"{freq}x/{unit_word}" if period == 1 else f"{freq}x/{period:g}{unit_word}")
+    return ", ".join(bits)
+
+
+def _med_summary(m: dict) -> dict:
+    return {
+        "name": _coding_text(m.get("medicationCodeableConcept")),
+        "dose": _dosage_text(m),
+        "date": m.get("authoredOn"),
+    }
+
+
+def _condition_summary(c: dict) -> dict:
+    return {"name": _coding_text(c.get("code")), "onset": c.get("onsetDateTime")}
+
+
+def _procedure_summary(p: dict) -> dict:
+    return {
+        "name": _coding_text(p.get("code")),
+        "date": p.get("performedDateTime") or (p.get("performedPeriod") or {}).get("start"),
+    }
+
+
+def _careteam_roster(care_teams: list) -> list:
+    seen: set[str] = set()
+    roster = []
+    for ct in care_teams:
+        for part in ct.get("participant", []):
+            name = (part.get("member") or {}).get("display")
+            if not name or name in seen:
+                continue
+            seen.add(name)
+            roster.append({"name": name, "role": _coding_text((part.get("role") or [{}])[0])})
+    return roster
+
+
+RECENT_ENCOUNTERS_LIMIT = 20
+RECENT_PROCEDURES_LIMIT = 15
+
+
+def _build_patient_info(patient: dict, observations: list, encounters: list,
+                        medications: list | None = None, conditions: list | None = None,
+                        procedures: list | None = None, care_teams: list | None = None) -> dict:
+    """Reference data pulled straight from the chart so a clinician doesn't
+    need a second system open: DOB/sex, latest-per-test labs and vitals,
+    latest-per-fact social history (smoking, alcohol, drug use), recent
+    encounters/procedures, active medications and problems, and the care
+    team roster.
+
+    Labs/vitals/social-history/encounters/procedures aren't Baton fixtures —
+    they're read from every Observation/Encounter/Procedure on the patient,
+    not just baton-tagged ones — and are best-effort (see
+    _fetch_info_resources). Medications/conditions are filtered server-side
+    to active only. The care team roster IS a Baton fixture (Amy's
+    load_fixtures.py generates one CareTeam per persona from the same
+    role/author pairs already on the notes), fetched with the other fixture
+    resources in load_fhir_patients.
+
+    Synthea re-records unchanged social-history facts (e.g. "Ex-smoker") at
+    every checkup for decades, and Encounter/Procedure history can span a
+    lifetime — both are deduped/capped here since FhirClient.search()'s
+    _count only bounds page size, not the total paginated result."""
+    labs: list[dict] = []
+    vitals: list[dict] = []
+    social: list[dict] = []
+    seen_labs: set[str] = set()
+    seen_vitals: set[str] = set()
+    seen_social: set[str] = set()
+    # observations arrive newest-first (_sort=-date), so first occurrence per
+    # test/fact name is the latest result.
+    for obs in observations:
+        name = _coding_text(obs.get("code"))
+        if not name:
+            continue
+        category = _obs_category(obs)
+        entry = {"name": name, "value": _obs_value(obs), "date": _obs_date(obs)}
+        if category == "laboratory" and name not in seen_labs:
+            seen_labs.add(name)
+            labs.append(entry)
+        elif category == "vital-signs" and name not in seen_vitals:
+            seen_vitals.add(name)
+            vitals.append(entry)
+        elif category == "social-history" and name not in seen_social:
+            seen_social.add(name)
+            social.append(entry)
+
+    visits = []
+    for enc in encounters[:RECENT_ENCOUNTERS_LIMIT]:
+        period = enc.get("period") or {}
+        visits.append({
+            "date": period.get("start"),
+            "type": _coding_text((enc.get("type") or [{}])[0]),
+            "reason": _coding_text((enc.get("reasonCode") or [{}])[0]),
+            "status": enc.get("status"),
+        })
+
+    return {
+        "dob": patient.get("birthDate"),
+        "gender": patient.get("gender"),
+        "labs": labs,
+        "vitals": vitals,
+        "socialHistory": social,
+        "encounters": visits,
+        "medications": [_med_summary(m) for m in (medications or [])],
+        "conditions": [_condition_summary(c) for c in (conditions or [])],
+        "procedures": [_procedure_summary(p) for p in (procedures or [])[:RECENT_PROCEDURES_LIMIT]],
+        "careTeam": _careteam_roster(care_teams or []),
+    }
+
+
 def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
                              docrefs: list, tasks: list, consents: list,
-                             allergies: list, now: datetime) -> dict:
+                             allergies: list, now: datetime,
+                             observations: list | None = None,
+                             encounters: list | None = None,
+                             medications: list | None = None,
+                             conditions: list | None = None,
+                             procedures: list | None = None,
+                             care_teams: list | None = None) -> dict:
     demo = next((p for p in demo_patients.DEMO_PATIENTS if p["id"] == persona_id), {})
 
     p = {
@@ -178,7 +355,39 @@ def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
                           or follow_up.get("description") or "") if follow_up else "",
         "medRec": (med_rec.get("description") or "") if med_rec else "",
     }
+    p["info"] = _build_patient_info(patient, observations or [], encounters or [],
+                                    medications, conditions, procedures, care_teams)
     return p
+
+
+async def _fetch_info_resources(fhir: FhirClient, fid: str) -> tuple[list, list, list, list, list]:
+    """Observation/Encounter/MedicationRequest/Condition/Procedure for the
+    patient-info panel. Reference-only data — a flaky call here must not fail
+    the whole panel load the way a missing fixture resource does, so it
+    degrades to an empty info section instead.
+
+    Observation is fetched once per category rather than one combined
+    category=a,b,c query: FhirClient.search()'s _count only bounds page size
+    (each search still pages up to MAX_RESOURCES=200), so a patient with
+    frequent vital-signs could otherwise fill the shared 200-item window and
+    push a rarely-drawn lab's only result out of it entirely. Fetching each
+    category into its own 200-item budget makes that impossible."""
+    try:
+        obs_by_category, encounters, medications, conditions, procedures = await asyncio.gather(
+            asyncio.gather(*(
+                fhir.search("Observation", patient=fid, category=cat, _sort="-date", _count=200)
+                for cat in OBS_CATEGORIES
+            )),
+            fhir.search("Encounter", patient=fid, _sort="-date", _count=20),
+            fhir.search("MedicationRequest", patient=fid, status="active", _count=50),
+            fhir.search("Condition", patient=fid, **{"clinical-status": "active"}, _count=50),
+            fhir.search("Procedure", patient=fid, _sort="-date", _count=50),
+        )
+        observations = [obs for bucket in obs_by_category for obs in bucket]
+        return observations, encounters, medications, conditions, procedures
+    except Exception:
+        log.warning("Failed to fetch patient-info resources for %s", fid, exc_info=True)
+        return [], [], [], [], []
 
 
 async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
@@ -199,18 +408,21 @@ async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
         if not ref.startswith("Patient/"):
             continue
         fid = ref.split("/", 1)[1]
-        patient, docrefs, tasks, consents, allergies, comms = await asyncio.gather(
+        patient, docrefs, tasks, consents, allergies, comms, care_teams = await asyncio.gather(
             fhir.get("Patient", fid),
             fhir.search("DocumentReference", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Task", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Consent", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("AllergyIntolerance", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Communication", patient=fid, _tag=FIXTURE_TAG, _count=100),
+            fhir.search("CareTeam", patient=fid, _tag=FIXTURE_TAG, _count=20),
         )
+        observations, encounters, medications, conditions, procedures = await _fetch_info_resources(fhir, fid)
         docrefs = [r for r in docrefs if is_fixture(r)]
         tasks = [r for r in tasks if is_fixture(r)]
         consents = [r for r in consents if is_fixture(r)]
         allergies = [r for r in allergies if is_fixture(r)]
+        care_teams = [r for r in care_teams if is_fixture(r)]
         output_comms = [r for r in comms if fhir_write.is_output(r)]
         output_tasks = [t for t in tasks if fhir_write.is_output(t)]
         tasks = [t for t in tasks if not fhir_write.is_output(t)]
@@ -227,7 +439,9 @@ async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
         ))
         demo = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == pid)
         built = build_patient_from_chart(pid, overrides, patient, docrefs,
-                                         tasks, consents, allergies, now)
+                                         tasks, consents, allergies, now,
+                                         observations, encounters,
+                                         medications, conditions, procedures, care_teams)
         missing = []
         if len(built["notes"]) < len(demo["notes"]):
             missing.append(f"notes {len(built['notes'])}/{len(demo['notes'])}")

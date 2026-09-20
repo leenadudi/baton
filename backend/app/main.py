@@ -180,7 +180,12 @@ async def add_note(pid: str, body: NoteIn) -> dict:
         note["reconcile"] = True
     panel.add_note(pid, note)
     suffix = f" ({TOPICS[body.topic]['label']}: {body.value})" if body.topic else ""
-    state.log_act(pid, f"Added {body.role} note{suffix}")
+    # A reconciling note (rules.py's barrier) genuinely resolves a conflict —
+    # but only if it actually carries a tag for that topic; an untagged
+    # reconcile=true note has no effect on any conflict. Any other note is a
+    # new instruction, which can introduce a conflict as easily as settle one.
+    state.log_act(pid, f"Added {body.role} note{suffix}",
+                  resolved=bool(body.reconcile and tags))
     return panel.build_patient(p)
 
 
@@ -235,7 +240,8 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             state.log_act(pid, f"Cleared blocker: {blocker['label']}")
         else:
             S["escalated"][f"{pid}|{rest}"] = True
-            state.log_act(pid, f"Escalated blocker: {blocker['label']}")
+            # Not resolved: escalating raises urgency, it doesn't close the blocker.
+            state.log_act(pid, f"Escalated blocker: {blocker['label']}", resolved=False)
         await _write(fhir_write.record_blocker_action(fhir, _fid(p) or "", pid,
                                                       rest, body.action), pid)
     elif body.action == "adopt":
@@ -264,7 +270,7 @@ async def _write(coro, pid: str):
         return await coro
     except Exception as exc:
         log.warning("FHIR write failed: %s", exc)
-        state.log_act(pid, f"FHIR write failed: {exc}")
+        state.log_act(pid, f"FHIR write failed: {exc}", resolved=False)
         return None
 
 
