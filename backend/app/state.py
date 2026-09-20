@@ -40,6 +40,10 @@ def prune() -> None:
 
 
 def log_act(s: dict, pid: str, text: str, by: str | None = None,
-            by_id: str | None = None) -> None:
+            by_id: str | None = None, resolved: bool = True) -> None:
+    """resolved=False for entries that are ongoing or failed, not completed
+    (e.g. escalating a blocker raises its urgency, it doesn't close it) —
+    the Completed tab filters on this so open/failed work doesn't read as done."""
     s["log"].setdefault(pid, []).insert(
-        0, {"at": time.time() * 1000, "text": text, "by": by, "byId": by_id})
+        0, {"at": time.time() * 1000, "text": text, "by": by, "byId": by_id,
+            "resolved": resolved})

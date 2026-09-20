@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -14,13 +15,15 @@ from typing import Literal
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import fhir_panel, panel, rules, state
+from app import fhir_panel, fhir_write, panel, rules, state
 from app import store as store_mod
 from app.extract import extract
 from app.fhir_client import FhirClient
 from app.rules import FIELDS, TOPICS
 
 PATIENT_IDS_FILE = REPO_ROOT / "dataset" / "patient_ids.json"
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Baton API")
 
@@ -202,16 +205,18 @@ def _ctx(doctor: dict | None = Depends(_optional_doctor),
 
 
 def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
-            target: str | None = None) -> None:
+            target: str | None = None, resolved: bool = True) -> None:
     doctor_name = ctx.doctor["name"] if ctx.doctor else "Guest"
     if pid:
         state.log_act(ctx.s, pid, text, by=doctor_name,
-                      by_id=ctx.doctor["id"] if ctx.doctor else None)
+                      by_id=ctx.doctor["id"] if ctx.doctor else None,
+                      resolved=resolved)
     store_mod.get_store().record_action(ctx.scope, {
         "at": int(time.time() * 1000),
         "doctorId": ctx.doctor["id"] if ctx.doctor else None,
         "doctorName": doctor_name,
-        "patientId": pid, "action": action, "target": target, "text": text})
+        "patientId": pid, "action": action, "target": target, "text": text,
+        "resolved": resolved})
 
 
 @app.get("/activity")
@@ -247,8 +252,14 @@ def _patient_or_404(pid: str) -> dict:
     return p
 
 
+def _fid(p: dict) -> str | None:
+    ref = p.get("fhirPatientId") or ""
+    return ref.split("/", 1)[1] if ref.startswith("Patient/") else None
+
+
 def _issue_or_404(pid: str, issue_id: str, s: dict) -> dict:
-    issue = next((i for i in rules.get_issues(_patient_or_404(pid), s)
+    issue = next((i for i in rules.get_issues(_patient_or_404(pid),
+                                              panel.effective_state(s))
                   if i["id"] == issue_id), None)
     if issue is None:
         raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -291,7 +302,12 @@ async def add_note(pid: str, body: NoteIn, ctx: _Ctx = Depends(_ctx)) -> dict:
         note["reconcile"] = True
     panel.add_note(pid, note, ctx.s)
     suffix = f" ({TOPICS[body.topic]['label']}: {body.value})" if body.topic else ""
-    _record(ctx, pid, f"Added {body.role} note{suffix}", "addNote")
+    # A reconciling note (rules.py's barrier) genuinely resolves a conflict —
+    # but only if it actually carries a tag for that topic; an untagged
+    # reconcile=true note has no effect on any conflict. Any other note is a
+    # new instruction, which can introduce a conflict as easily as settle one.
+    _record(ctx, pid, f"Added {body.role} note{suffix}", "addNote",
+            resolved=bool(body.reconcile and tags))
     return panel.build_patient(p, ctx.s)
 
 
@@ -312,8 +328,10 @@ async def patch_issue(issue_id: str, body: IssuePatch,
             _record(ctx, pid, f'Assigned "{issue["title"]}" to {body.value}',
                     "owner", issue_id)
         else:
-            S["owners"].pop(issue_id, None)
+            S["owners"][issue_id] = ""  # tombstone masks a chart-loaded owner
             _record(ctx, pid, f'Unassigned "{issue["title"]}"', "owner", issue_id)
+        await _write(ctx, fhir_write.record_issue_owner(fhir, _fid(p) or "", pid,
+                                                        issue_id, body.value), pid)
     elif body.action == "fill":
         if kind != "handoff" or rest not in {f["key"] for f in FIELDS}:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -324,6 +342,8 @@ async def patch_issue(issue_id: str, body: IssuePatch,
         label = next(f["label"] for f in FIELDS if f["key"] == rest)
         _record(ctx, pid, f"Added {label} to handoff: {body.value}",
                 "fill", issue_id)
+        await _write(ctx, fhir_write.record_fill(fhir, _fid(p) or "", pid,
+                                                 rest, body.value), pid)
     elif body.action == "pendingOwner":
         if kind != "handoff" or not rest or not rest.startswith("pend:"):
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -334,6 +354,8 @@ async def patch_issue(issue_id: str, body: IssuePatch,
         S["pendOwners"][f"{pid}|{name}"] = body.value
         _record(ctx, pid, f"Assigned {name} follow-up to {body.value}",
                 "pendingOwner", issue_id)
+        await _write(ctx, fhir_write.record_pending_owner(fhir, _fid(p) or "", pid,
+                                                          name, body.value), pid)
     elif body.action in ("clear", "escalate"):
         if kind != "blocker" or not rest:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -346,8 +368,11 @@ async def patch_issue(issue_id: str, body: IssuePatch,
                     "clear", issue_id)
         else:
             S["escalated"][f"{pid}|{rest}"] = True
+            # Not resolved: escalating raises urgency, it doesn't close the blocker.
             _record(ctx, pid, f"Escalated blocker: {blocker['label']}",
-                    "escalate", issue_id)
+                    "escalate", issue_id, resolved=False)
+        await _write(ctx, fhir_write.record_blocker_action(fhir, _fid(p) or "", pid,
+                                                           rest, body.action), pid)
     elif body.action == "adopt":
         if kind != "conflict" or rest not in TOPICS:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -355,15 +380,38 @@ async def patch_issue(issue_id: str, body: IssuePatch,
         if body.value not in TOPICS[topic]["values"]:
             raise HTTPException(422, f"invalid value for {topic}: {body.value}")
         label = TOPICS[topic]["label"]
-        panel.add_note(pid, {
-            "role": "Attending decision",
-            "author": ctx.doctor["name"] if ctx.doctor else "Reconciled in Baton",
-            "text": f"Reconciled {label}: proceed with {body.value}. "
-                    "Earlier conflicting instructions are superseded.",
-            "tags": [[topic, body.value]], "reconcile": True}, S)
+        text = (f"Reconciled {label}: proceed with {body.value}. "
+                "Earlier conflicting instructions are superseded.")
+        note = {"role": "Attending decision",
+                "author": ctx.doctor["name"] if ctx.doctor else "Reconciled in Baton",
+                "text": text, "tags": [[topic, body.value]], "reconcile": True}
+        panel.add_note(pid, note, S)
+        res = await _write(ctx, fhir_write.record_adopt(fhir, _fid(p) or "", pid,
+                                                        topic, body.value, text), pid)
+        if res:
+            note["source"] = {"resourceType": "Communication", "id": res.get("id")}
         _record(ctx, pid, f"Reconciled {label} to {body.value}",
                 "adopt", issue_id)
     return panel.build_patient(p, ctx.s)
+
+
+async def _write(ctx: _Ctx, coro, pid: str):
+    """Run a fhir_write call; failures are logged, never fatal to the local state."""
+    try:
+        return await coro
+    except Exception as exc:
+        log.warning("FHIR write failed: %s", exc)
+        _record(ctx, pid, f"FHIR write failed: {exc}", "fhirWrite",
+                resolved=False)
+        return None
+
+
+@app.post("/brief/publish")
+async def publish_brief(ctx: _Ctx = Depends(_ctx)) -> dict:
+    if not fhir_write.enabled():
+        raise HTTPException(409, "FHIR_WRITE is off")
+    res = await fhir_write.publish_brief(fhir, panel.brief_text(ctx.s))
+    return {"id": res["id"], "url": res["url"]}
 
 
 @app.get("/brief", response_class=PlainTextResponse)
@@ -374,13 +422,20 @@ async def get_brief(ctx: _Ctx = Depends(_ctx)) -> str:
 
 @app.post("/demo/reset")
 async def demo_reset(ctx: _Ctx = Depends(_ctx)) -> dict:
-    """Reset the caller's scope — the shared unit when signed in."""
+    """Reset the caller's scope — the shared unit when signed in — and, when
+    FHIR_WRITE is on, delete the baton-out-* chart outputs and reload."""
     st = store_mod.get_store()
     st.reset_state(ctx.scope)
     ctx.s.clear()
     ctx.s.update(state.fresh())  # so the request teardown persists fresh state
     _record(ctx, None, "Reset the demo", "reset")
-    return {"status": "ok"}
+    result: dict = {"status": "ok"}
+    if fhir_write.enabled():
+        fids = [f for f in (_fid(p) for p in panel.load_patients()) if f]
+        result["deleted"] = await fhir_write.delete_outputs(fhir, fids)
+        fhir_panel.force_invalidate()
+        await fhir_panel.ensure_loaded(fhir)
+    return result
 
 
 @app.post("/demo/refresh")

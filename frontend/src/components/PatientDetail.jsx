@@ -5,7 +5,32 @@ import { ago, handoffProgress } from '../lib/rules.js'
 import IssueCard from './IssueCard.jsx'
 import AddNoteForm from './AddNoteForm.jsx'
 
-const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps'],['blocker','Blockers']]
+const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps'],['blocker','Blockers'],['completed','Completed']]
+
+function fmtDate(iso) {
+  if (!iso) return 'Unknown date'
+  // Date-only FHIR values (birthDate, onsetDate) have no timezone — parsing
+  // them as UTC-midnight and rendering in local time can shift the calendar
+  // day back by one for viewers west of UTC. Build the Date from local
+  // y/m/d components instead so the day never moves.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(iso)
+  const d = dateOnly
+    ? new Date(...iso.split('-').map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))))
+    : new Date(iso)
+  return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function InfoList({ title, items, render }) {
+  if (!items.length) return null
+  return (
+    <>
+      <div className="sec-h" style={{ marginTop: 14 }}><h3 style={{ fontSize: 15 }}>{title}</h3></div>
+      <ul className="log">
+        {items.map((item, k) => <li key={k}>{render(item)}</li>)}
+      </ul>
+    </>
+  )
+}
 
 export default function PatientDetail() {
   const { patientId } = useParams()
@@ -32,10 +57,14 @@ export default function PatientDetail() {
   const hp = handoffProgress(p)
   const hotTopics = {}
   issues.forEach((i) => { if (i.type === 'conflict') hotTopics[i.topic] = true })
-  const shown = issues.filter((i) => filter === 'all' || i.type === filter)
-  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0 }
-  issues.forEach((i) => counts[i.type]++)
+  const shown = filter === 'completed' ? [] : issues.filter((i) => filter === 'all' || i.type === filter)
   const notes = [...p.notes].sort((a, b) => b.seq - a.seq)
+  // Ongoing/failed entries (escalated, added notes, failed FHIR writes) are
+  // excluded — only genuinely resolved actions belong on a Completed tab.
+  const completedLog = (p.log || []).filter((e) => e.resolved !== false)
+  const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0, completed: completedLog.length }
+  issues.forEach((i) => counts[i.type]++)
+  const info = p.info
 
   return (
     <main>
@@ -69,7 +98,63 @@ export default function PatientDetail() {
           className={`chip${tab === 'notes' ? ' on' : ''}`}
           onClick={() => setTab('notes')}
         >Orders &amp; notes</button>
+        <button
+          role="tab" aria-selected={tab === 'info'}
+          className={`chip${tab === 'info' ? ' on' : ''}`}
+          onClick={() => setTab('info')}
+        >Patient info</button>
       </div>
+
+      {tab === 'info' && (
+      <section className="panel">
+        <div className="sec-h">
+          <h3>Patient info</h3>
+          <span className="hint">From the chart, so you don't need a second system open</span>
+        </div>
+        {info ? (
+          <>
+            <div className="hgrid">
+              <div className="hf ok">
+                <div>
+                  <div className="k">Date of birth</div>
+                  <div className="v">{info.dob ? fmtDate(info.dob) : 'Unknown'}</div>
+                </div>
+              </div>
+              <div className="hf ok">
+                <div>
+                  <div className="k">Sex</div>
+                  <div className="v">{info.gender || 'Unknown'}</div>
+                </div>
+              </div>
+              {info.socialHistory.map((s, k) => (
+                <div className="hf ok" key={k}>
+                  <div>
+                    <div className="k">{s.name}</div>
+                    <div className="v">{s.value || 'Recorded, no value'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <InfoList title="Care team" items={info.careTeam}
+              render={(m) => <>{m.name}{m.role ? ` — ${m.role}` : ''}</>} />
+            <InfoList title="Active problems" items={info.conditions}
+              render={(c) => <>{c.name}{c.onset ? ` (since ${fmtDate(c.onset)})` : ''}</>} />
+            <InfoList title="Current medications" items={info.medications}
+              render={(m) => <><time>{fmtDate(m.date)}</time>{m.name}{m.dose ? ` — ${m.dose}` : ''}</>} />
+            <InfoList title="Latest vitals" items={info.vitals}
+              render={(v) => <><time>{fmtDate(v.date)}</time>{v.name}: {v.value || 'no value recorded'}</>} />
+            <InfoList title="Latest labs" items={info.labs}
+              render={(l) => <><time>{fmtDate(l.date)}</time>{l.name}: {l.value || 'no value recorded'}</>} />
+            <InfoList title="Recent procedures" items={info.procedures}
+              render={(p) => <><time>{fmtDate(p.date)}</time>{p.name}</>} />
+            <InfoList title="Past visits" items={info.encounters}
+              render={(e) => <><time>{fmtDate(e.date)}</time>{e.type || 'Encounter'}{e.reason ? ` — ${e.reason}` : ''}</>} />
+          </>
+        ) : (
+          <div className="tag">Not available — offline/demo mode, or nothing recorded on the chart.</div>
+        )}
+      </section>
+      )}
 
       {tab === 'tasks' && (
       <>
@@ -108,8 +193,10 @@ export default function PatientDetail() {
 
       <section className="panel">
         <div className="sec-h">
-          <h3>What needs attention</h3>
-          <span className="hint">Highest priority first</span>
+          <h3>{filter === 'completed' ? 'Completed' : 'What needs attention'}</h3>
+          <span className="hint">
+            {filter === 'completed' ? 'Resolved on this patient, most recent first' : 'Highest priority first'}
+          </span>
         </div>
         <div className="chips" role="group" aria-label="Filter issues">
           {FILTERS.map(([f, label]) => (
@@ -121,7 +208,23 @@ export default function PatientDetail() {
             >{label} ({counts[f]})</button>
           ))}
         </div>
-        {shown.length ? (
+        {filter === 'completed' ? (
+          completedLog.length ? (
+            <ul className="log">
+              {completedLog.map((e, k) => (
+                <li key={k}>
+                  <time>{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+                  {e.by ? `${e.by} — ` : ''}{e.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="empty">
+              <b>Nothing completed yet</b>
+              Clearing a blocker, filling a handoff field, assigning an owner, or resolving a conflict will show up here.
+            </div>
+          )
+        ) : shown.length ? (
           shown.map((i) => (
             <IssueCard key={i.id} issue={i} actions={actions} />
           ))

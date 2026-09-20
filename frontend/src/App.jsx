@@ -13,7 +13,7 @@ const AuthCtx = createContext(null)
 
 function Panel() {
   const { doctor, logout, onSignIn } = useContext(AuthCtx)
-  const { patients, status, actions } = useChart(doctor)
+  const { patients, status, actions, fhirWrite } = useChart(doctor)
   const [brief, setBrief] = useState(null)
   const [team, setTeam] = useState(false)
   const [teamDoctor, setTeamDoctor] = useState(null)
@@ -96,7 +96,12 @@ function Panel() {
       </p>
 
       {brief !== null && (
-        <BriefModal text={brief} onClose={() => setBrief(null)} />
+        <BriefModal
+          text={brief}
+          onClose={() => setBrief(null)}
+          canPublish={status === 'api' && fhirWrite}
+          onPublish={actions.publishBrief}
+        />
       )}
       {team && <TeamModal patients={patients} initial={teamDoctor} onClose={closeTeam} />}
     </div>

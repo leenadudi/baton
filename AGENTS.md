@@ -32,8 +32,10 @@ port change needs that list updated too.
   returns `{role, topic, value}` tags; conflict detection is rule-engine logic
   over those tags. Every flag must trace back to a source note — no LLM call may
   be the thing that decides a flag.
-- **Read-only against the chart.** No write-back. Baton generates a brief a
-  clinician copies manually.
+- **Read-only against the chart.** Baton generates a brief a clinician copies
+  manually. Opt-in write-back (`FHIR_WRITE=1`) is append-only: new `baton-out-*`
+  Composition/Communication/Task resources, never edits or deletes existing
+  chart resources.
 - **Surfaces, does not adjudicate.** For conflicts, show both snippets and
   authors; never pick a winner.
 - Baton does not diagnose or recommend treatment.

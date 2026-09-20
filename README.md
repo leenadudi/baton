@@ -24,7 +24,7 @@ Standard FHIR resources — no custom data model:
 | Consults / referrals | `ServiceRequest` |
 | Follow-up owner, admin blockers | `Task` |
 
-Free-text notes go through an extraction step (OpenAI API) that returns the same `{role, topic, value}` tags a rule engine already uses to detect conflicts — the model reads, the rules decide, so every flag stays auditable back to a source note.
+Free-text notes go through an extraction step (OpenAI API) that returns the same `{role, topic, value}` tags a rule engine already uses to detect conflicts — the model reads, the rules decide, so every flag stays auditable back to a source note. Scored against the six prototype patients' hand-written tags: 16/16 notes exact match, precision/recall 1.00 (`scripts/score_extraction.py`).
 
 Write-back is deliberately minimal: Baton generates the handoff brief, a clinician reviews and copies it. No write permissions back to the chart.
 
@@ -80,7 +80,9 @@ python scripts/load_fhir.py --bundles dataset/synthea \
 # then to public HAPI
 ```
 
-Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). The panel routes (`/patients`, `/brief`, notes/issues) read the demo fixture resources on the FHIR server by default, cached for 5 minutes; set `PANEL_SOURCE=demo` to force the hardcoded demo patients, and `POST /demo/refresh` to reload from FHIR on demand. API routes:
+Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicitly). The panel routes (`/patients`, `/brief`, notes/issues) read the demo fixture resources on the FHIR server by default, cached for 5 minutes; set `PANEL_SOURCE=demo` to force the hardcoded demo patients, and `POST /demo/refresh` to reload from FHIR on demand.
+
+Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append its own `baton-out-*` resources (published briefs, reconciliations, owner/fill records — never touching fixture or patient data). With it enabled, `POST /brief/publish` writes the brief as a `Composition`, panel mutations record output resources, and `POST /demo/reset` deletes them. API routes:
 
 - `GET /patients`, `GET /patients/{id}` — unit panel: patient + handoff fields, notes, and current issues in one response
 - `POST /patients/{id}/notes` — demo-only: add an instruction note locally (not a FHIR write)
