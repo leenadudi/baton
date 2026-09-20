@@ -20,6 +20,22 @@ const SORTS = [
 // issues[0] is the next thing to move on this patient.
 const NEXT_VERB = { conflict: 'Reconcile', handoff: 'Complete', blocker: 'Unblock' }
 
+// Titles are written as full sentences for the issue cards, which is too long
+// for a table row. The verb chip carries the action, so strip the title down to
+// what the verb acts on.
+function shortAction(i) {
+  if (i.type === 'conflict') {
+    const n = i.vals ? Object.keys(i.vals).length : 2
+    return `${i.title.split(':')[0]} (${n} instructions)`
+  }
+  if (i.type === 'handoff') {
+    const pending = i.title.match(/^Pending result has no owner: (.+)$/)
+    if (pending) return `owner for ${pending[1]}`
+    return i.title.replace(/ is missing from the handoff$/, '')
+  }
+  return i.title
+}
+
 const initials = (name) =>
   name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
@@ -72,8 +88,8 @@ export default function PatientList({ patients, query }) {
         <table className="pt-table">
           <thead>
             <tr>
-              <th scope="col">Room</th>
               <th scope="col">Patient</th>
+              <th scope="col" className="dx-h">Diagnosis</th>
               <th scope="col" className="nact-h">Next action</th>
               <th scope="col">Discharge</th>
               <th scope="col">Status</th>
@@ -89,7 +105,6 @@ export default function PatientList({ patients, query }) {
               const b = p.issues.filter((i) => i.type === 'blocker').length
               return (
                 <tr key={p.id}>
-                  <td><span className="rm">{p.room}</span></td>
                   <td>
                     <Link className="who" to={`/patients/${p.id}`}>
                       <span className="ini" aria-hidden="true">{initials(p.name)}</span>
@@ -105,6 +120,7 @@ export default function PatientList({ patients, query }) {
                       </span>
                     </Link>
                   </td>
+                  <td className="dxc">{p.dx}</td>
                   <td className="nact">
                     {p.issues.length ? (
                       <>
@@ -112,9 +128,9 @@ export default function PatientList({ patients, query }) {
                           {NEXT_VERB[p.issues[0].type]}
                         </span>
                         <span className="ntitle" title={p.issues[0].title}>
-                          {p.issues[0].title}
+                          {shortAction(p.issues[0])}
                         </span>
-                        {!p.issues[0].owner && <span className="nunowned">Unassigned</span>}
+                        {!p.issues[0].owner && <span className="nunowned">No owner</span>}
                       </>
                     ) : <span className="meta">Nothing open</span>}
                   </td>

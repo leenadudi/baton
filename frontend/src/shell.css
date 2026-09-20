@@ -87,8 +87,6 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .pt-table tbody tr:hover{background:var(--surface-2);}
 .pt-table tbody tr:last-child td{border-bottom:0;}
 .pt-table a.who{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;}
-.pt-table .rm{font-family:var(--mono);font-size:12px;color:var(--ink-2);background:var(--surface-2);
-  border:1px solid var(--line);padding:1px 7px;border-radius:5px;white-space:nowrap;}
 .pt-table .nm{font-weight:600;}
 .pt-table .meta{font-size:12.5px;color:var(--ink-2);}
 .ini{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;
@@ -132,16 +130,24 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 /* Next action: the highest-severity open issue, so the table leads with the
    work rather than with identifiers. Truncated because titles vary in length
    and a wrapping first column makes the rows impossible to scan. */
-.pt-table th.nact-h,.pt-table td.nact{min-width:260px;max-width:340px;}
-.nact{display:flex;align-items:baseline;gap:8px;}
-.nverb{flex:none;font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:2px 8px;
+.pt-table th.nact-h,.pt-table td.nact{min-width:220px;max-width:320px;}
+.pt-table th.dx-h,.pt-table td.dxc{min-width:150px;max-width:230px;}
+.pt-table td.dxc{color:var(--ink-2);white-space:normal;}
+.nact{white-space:normal;line-height:1.45;}
+.nverb{display:inline-block;margin-right:7px;vertical-align:baseline;font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:2px 8px;
   border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);}
 .nverb.conflict{background:var(--conflict-bg);border-color:var(--conflict);color:var(--conflict);}
 .nverb.handoff{background:var(--handoff-bg);border-color:var(--handoff);color:var(--handoff);}
 .nverb.blocker{background:var(--blocker-bg);border-color:var(--blocker);color:var(--blocker);}
-.ntitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.nunowned{flex:none;font-size:11.5px;color:var(--conflict);font-weight:600;}
+.ntitle{white-space:normal;}
+.nunowned{display:inline-block;margin-left:7px;font-size:11.5px;color:var(--conflict);font-weight:600;}
 
 /* The bar alone gives a rough sense; the number is what people compare. */
 
 .pt-table td.eta{white-space:nowrap;font-variant-numeric:tabular-nums;}
+
+/* Patient / Diagnosis / Next action stay left -- centring wrapped prose makes
+   the ragged edges collide. Everything from Discharge rightwards is short
+   enough to centre, and the header centres with it so they line up. */
+.pt-table th:nth-child(n+4),.pt-table td:nth-child(n+4){text-align:center;}
+.pt-table td{vertical-align:top;padding-top:13px;}
