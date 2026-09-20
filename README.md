@@ -2,9 +2,9 @@
 
 **HackMIT 2026 · Healthcare Track**
 
-Epic and Oracle Health already ship shift-handoff forms. Those forms are empty — clinicians retype the same information into them every shift. Baton fills the form in and tells you what's still missing.
+Every shift change risks losing critical information. Baton turns the patient’s chart into a ready-to-review handoff, automatically surfacing conflicting instructions, missing information, and stuck tasks before they become the next shift’s problem.
 
-**Live demo:** [batoncom.vercel.app](https://batoncom.vercel.app) · **API:** [baton-mf85.onrender.com](https://baton-mf85.onrender.com) (Render free tier — first request after idle can take ~30s to wake up)
+**Live demo:** [batoncom.vercel.app](https://batoncom.vercel.app)
 
 ## What it does
 
@@ -23,8 +23,6 @@ Baton reads the chart; it does not diagnose or recommend treatment, and by defau
 This is the architectural rule the whole system is built around, and it's what makes every flag on screen auditable.
 
 Free-text clinical notes go through an OpenAI (`gpt-4o-mini`) extraction step that returns structured `{role, topic, value}` tags — nothing more. A separate, deterministic Python rule engine, ported line-for-line from the original working prototype, is the *only* thing that decides what counts as a conflict, an incomplete field, or an aged blocker. The model never classifies an issue type and never picks a winning instruction. That separation means every flag traces back to one specific note or FHIR resource, never to a model's own judgment call.
-
-Scored against the six demo patients' hand-tagged notes: **16/16 exact match, precision/recall 1.00** (`scripts/score_extraction.py`) — though that number alone doesn't prove generalization, since those notes and their tags were written together. A second, harder evaluation set with deliberate traps (past-tense narration, patient/family wishes, decoy keywords), scored separately and never blended into one headline number, is in review on [#39](https://github.com/leenadudi/baton/pull/39).
 
 ## FHIR-native — no custom data model
 
