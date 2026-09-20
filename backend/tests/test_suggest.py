@@ -48,6 +48,15 @@ def test_clarify_returns_message(monkeypatch):
     assert body["message"].startswith("Drs disagree")
 
 
+def test_clarify_nonstring_message(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(suggest, "_ask",
+                        fake_ask({"message": {"text": "x"}}))
+    _, issue = find_issue("conflict")
+    resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
+    assert resp.json()["message"] == ""
+
+
 def test_clarify_wrong_type_400():
     _, issue = find_issue("blocker")
     resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
@@ -97,17 +106,18 @@ def test_field_valid_index_and_verbatim_quote(monkeypatch):
     full = client.get(f"/patients/{p['id']}").json()
     note = full["notes"][0]
     quote = note["text"][:20]
+    value = quote[:8].strip()  # must appear inside the quote
     monkeypatch.setattr(suggest, "_ask",
-                        fake_ask({"value": "from notes", "noteIndex": 0,
+                        fake_ask({"value": value, "noteIndex": 0,
                                   "quote": quote}))
     resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
     body = resp.json()
-    assert body["value"] == "from notes"
+    assert body["value"] == value
     assert body["source"]["text"] == note["text"]
 
     # quote NOT in the note -> drop everything
     monkeypatch.setattr(suggest, "_ask",
-                        fake_ask({"value": "from notes", "noteIndex": 0,
+                        fake_ask({"value": value, "noteIndex": 0,
                                   "quote": "ZZZ not in note"}))
     resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
     assert resp.json()["value"] is None
@@ -128,6 +138,44 @@ def test_field_requires_quote(monkeypatch):
     resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
     assert resp.status_code == 200
     assert resp.json()["value"] is None
+
+
+def test_field_value_must_be_in_quote(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    p, issue = find_issue("handoff",
+                          lambda i: i.get("fix", {}).get("kind") == "field")
+    full = client.get(f"/patients/{p['id']}").json()
+    quote = full["notes"][0]["text"][:20]
+    # verbatim quote, but the value doesn't appear inside it -> dropped
+    monkeypatch.setattr(suggest, "_ask",
+                        fake_ask({"value": "ZZZ-absent", "noteIndex": 0,
+                                  "quote": quote}))
+    resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
+    assert resp.json()["value"] is None
+    assert resp.json()["source"] is None
+
+
+def test_field_finds_state_added_note(monkeypatch):
+    """A note added via the API (in-memory state, not the chart) is visible
+    to field suggestions — mirrors what the UI shows."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    p, issue = find_issue("handoff",
+                          lambda i: i.get("fix", {}).get("kind") == "field")
+    r = client.post(f"/patients/{p['id']}/notes",
+                    json={"role": "Nursing",
+                          "text": "Confirmed code status is Full code per chart."})
+    assert r.status_code == 200
+    notes = r.json()["notes"]
+    idx = len(notes) - 1  # added notes sort last by seq
+    quote = "code status is Full code"
+    monkeypatch.setattr(suggest, "_ask",
+                        fake_ask({"value": "Full code", "noteIndex": idx,
+                                  "quote": quote}))
+    resp = client.post("/suggest/field", json={"issue_id": issue["id"]})
+    body = resp.json()
+    assert body["value"] == "Full code"
+    assert body["source"]["role"] == "Nursing"
+    assert "Full code" in body["source"]["text"]
 
 
 def test_field_wrong_type_400():

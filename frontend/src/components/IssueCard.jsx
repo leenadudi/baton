@@ -37,18 +37,18 @@ function OwnerSuggestion({ sug, onAssign }) {
 
 function ConflictBody({ issue, actions }) {
   const sug = useSuggestion(actions.suggestClarify)
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState(null)
   const [copied, setCopied] = useState('')
 
   const draft = async () => {
+    setMsg(null)
     await sug.run(issue.id)
-    setMsg('')
     setCopied('')
   }
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(msg || sug.data.message)
+      await navigator.clipboard.writeText(msg ?? sug.data.message)
       setCopied('Copied')
     } catch {
       setCopied('')
@@ -82,10 +82,10 @@ function ConflictBody({ issue, actions }) {
         {sug.error && <span className="tag">{sug.error}</span>}
       </div>
       {sug.data?.message && (
-        <SuggestBox onDismiss={sug.clear} label="Draft message">
+        <SuggestBox onDismiss={() => { setMsg(null); sug.clear() }} label="Draft message">
           <textarea
             aria-label="Clarifying message draft"
-            value={msg || sug.data.message}
+            value={msg ?? sug.data.message}
             onChange={(e) => setMsg(e.target.value)}
           />
           <div className="row-act end">

@@ -443,7 +443,9 @@ class SuggestIn(BaseModel):
 
 def _suggest_target(issue_id: str, s: dict) -> tuple[dict, dict]:
     pid = issue_id.split(":")[0]
-    p = _patient_or_404(pid)
+    p = dict(_patient_or_404(pid))  # shallow copy — don't mutate the cache
+    p["notes"] = sorted(rules.all_notes(p, panel.effective_state(s)),
+                        key=lambda n: n.get("seq", 0))
     return p, _issue_or_404(pid, issue_id, s)
 
 

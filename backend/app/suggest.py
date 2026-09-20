@@ -46,6 +46,10 @@ async def _ask(system: str, user: str) -> dict:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _str(v) -> str:
+    return v.strip() if isinstance(v, str) else ""
+
+
 def _note_line(note: dict) -> str:
     return f"{note.get('role', '?')}, {note.get('author', '?')}, " \
            f"{note.get('h', '?')}h ago: {note.get('text', '')}"
@@ -63,7 +67,7 @@ async def clarify(issue: dict, patient: dict) -> dict:
             lines.append(f"  - {_note_line(n)}")
         lines.append("")
     res = await _ask(CLARIFY_SYSTEM, "\n".join(lines))
-    return {"advisory": True, "message": res.get("message") or ""}
+    return {"advisory": True, "message": _str(res.get("message"))}
 
 
 async def owner(issue: dict, patient: dict, allowed: list[str]) -> dict:
@@ -88,9 +92,9 @@ async def owner(issue: dict, patient: dict, allowed: list[str]) -> dict:
     lines.append(f"Allowed owners: {', '.join(allowed)}")
     res = await _ask(OWNER_SYSTEM, "\n".join(lines))
     pick = res.get("owner")
-    if pick not in allowed:
+    if not isinstance(pick, str) or pick not in allowed:
         pick = None
-    return {"advisory": True, "owner": pick, "reason": res.get("reason") or ""}
+    return {"advisory": True, "owner": pick, "reason": _str(res.get("reason"))}
 
 
 async def field(issue: dict, patient: dict) -> dict:
@@ -102,23 +106,27 @@ async def field(issue: dict, patient: dict) -> dict:
     for i, n in enumerate(notes):
         lines.append(f"[{i}] {_note_line(n)}")
     res = await _ask(FIELD_SYSTEM, "\n".join(lines))
-    value, source = res.get("value"), None
-    idx, quote = res.get("noteIndex"), res.get("quote")
+    value = _str(res.get("value")) or None
+    quote = _str(res.get("quote"))
+    source = None
+    idx = res.get("noteIndex")
     if value is not None and isinstance(idx, int) and 0 <= idx < len(notes):
         note = notes[idx]
-        # The quote must appear verbatim in that note — otherwise we can't
-        # trust the attribution and drop the whole suggestion.
-        if (isinstance(quote, str) and quote
-                and quote.lower() in (note.get("text") or "").lower()):
+        # Evidence: the quote must be verbatim in the note and the suggested
+        # value must appear inside that quote — anything less and the
+        # attribution can't be trusted, so the suggestion is dropped.
+        if (quote and quote.lower() in (note.get("text") or "").lower()
+                and value.lower() in quote.lower()):
             source = {"role": note.get("role"), "author": note.get("author"),
                       "h": note.get("h"), "text": note.get("text"),
                       "source": note.get("source")}
     if source is None:
         value = None
-    return {"advisory": True, "value": value, "quote": quote, "source": source}
+    return {"advisory": True, "value": value,
+            "quote": quote or None, "source": source}
 
 
 async def huddle(brief: str) -> dict:
     """Rewrite the shift brief as a ~30-second spoken huddle script."""
     res = await _ask(HUDDLE_SYSTEM, brief)
-    return {"advisory": True, "script": res.get("script") or ""}
+    return {"advisory": True, "script": _str(res.get("script"))}
