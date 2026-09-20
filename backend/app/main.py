@@ -199,7 +199,7 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             S["owners"][issue_id] = body.value
             state.log_act(pid, f'Assigned "{issue["title"]}" to {body.value}')
         else:
-            S["owners"].pop(issue_id, None)
+            S["owners"][issue_id] = ""  # tombstone masks a chart-loaded owner
         await _write(fhir_write.record_issue_owner(fhir, _fid(p) or "", pid,
                                                    issue_id, body.value), pid)
     elif body.action == "fill":

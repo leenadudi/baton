@@ -54,9 +54,11 @@ def test_publish_brief(monkeypatch):
     import asyncio
     fake = FakeWriter()
     res = asyncio.run(fhir_write.publish_brief(fake, "BRIEF <text> & stuff"))
-    assert res == {"id": "c1", "url": "http://fake/Composition/c1"}
-    kind, rtype, comp = fake.calls[0]
-    assert (kind, rtype) == ("create", "Composition")
+    comp_id = res["id"]
+    assert comp_id.startswith("baton-out-brief-")
+    assert res["url"] == f"http://fake/Composition/{comp_id}"
+    kind, rtype, rid, comp = fake.calls[0]
+    assert (kind, rtype, rid) == ("put", "Composition", comp_id)
     assert comp["status"] == "preliminary"
     codes = {t["code"] for t in comp["meta"]["tag"]}
     assert codes == {"demo-fixture", "baton-output"}
@@ -121,6 +123,28 @@ def test_outputs_to_state():
     assert "p1:conflict:anticoagulation" in ids  # untouched
 
 
+def test_delete_outputs_skips_non_output_ids(monkeypatch):
+    monkeypatch.setenv("FHIR_WRITE", "1")
+    import asyncio
+
+    class Searchy(FakeWriter):
+        async def search(self, resource_type, **params):
+            if resource_type == "Task":
+                return [{"resourceType": "Task", "id": "baton-out-p1-x",
+                         "meta": {"tag": [{"system": fhir_write.FIXTURE_TAG_SYSTEM,
+                                           "code": "baton-output"}]}},
+                        # tagged baton-output but a server-side id: never delete
+                        {"resourceType": "Task", "id": "srv-9",
+                         "meta": {"tag": [{"system": fhir_write.FIXTURE_TAG_SYSTEM,
+                                           "code": "baton-output"}]}}]
+            return []
+
+    fake = Searchy()
+    assert asyncio.run(fhir_write.delete_outputs(fake, ["42157"])) == 1
+    assert ("delete", "Task", "baton-out-p1-x") in fake.calls
+    assert not any(c[0] == "delete" and c[2] == "srv-9" for c in fake.calls)
+
+
 def test_api_write_back(monkeypatch):
     monkeypatch.setenv("FHIR_WRITE", "1")
     fake = FakeWriter()
@@ -133,16 +157,30 @@ def test_api_write_back(monkeypatch):
     resp = client.patch("/issues/p6:conflict:diet",
                         json={"action": "adopt", "value": "NPO"})
     assert resp.status_code == 200
-    creates = [c for c in fake.calls if c[0] == "create" and c[1] == "Communication"]
-    assert len(creates) == 1
+    puts = [c for c in fake.calls
+            if c[0] == "put" and c[1] == "Communication"]
+    assert len(puts) == 1
+    comm_id = puts[0][2]
+    assert comm_id.startswith("baton-out-p6-adopt-diet-")
     notes = resp.json()["notes"]
     rec = next(n for n in notes if n.get("reconcile"))
-    assert rec["source"] == {"resourceType": "Communication", "id": "c1"}
+    assert rec["source"] == {"resourceType": "Communication", "id": comm_id}
 
     pub = client.post("/brief/publish")
     assert pub.status_code == 200
-    assert pub.json()["url"] == "http://fake/Composition/c1"
+    assert pub.json()["id"].startswith("baton-out-brief-")
+    assert pub.json()["url"] == f"http://fake/Composition/{pub.json()['id']}"
 
     reset = client.post("/demo/reset")
     assert reset.status_code == 200
     assert reset.json()["deleted"] == 0  # fake search returns no outputs
+
+    # cleared owner tombstones must beat a chart-loaded owner in effective_state
+    monkeypatch.setattr("app.main.fhir_panel.chart_state",
+                        lambda: {"owners": {"p1:blocker:b1": "Night Resident"}})
+    built = client.get("/patients/p1").json()
+    issue = next(i for i in built["issues"] if i["id"] == "p1:blocker:b1")
+    assert issue["owner"] == "Night Resident"
+    cleared = client.patch("/issues/p1:blocker:b1", json={"action": "owner", "value": ""})
+    issue = next(i for i in cleared.json()["issues"] if i["id"] == "p1:blocker:b1")
+    assert issue["owner"] == ""

@@ -4,10 +4,14 @@ modifies or deletes any other resource. Off unless FHIR_WRITE=1.
 
 import hashlib
 import html
+import logging
 import os
+import re
 from datetime import datetime, timezone
 
 from app.fhir_client import FhirClient
+
+log = logging.getLogger(__name__)
 
 FIXTURE_TAG_SYSTEM = "https://github.com/leenadudi/baton"
 OUTPUT_TAG_CODE = "baton-output"
@@ -40,9 +44,19 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _stamp() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _id_part(s: str) -> str:
+    """FHIR ids allow only [A-Za-z0-9-.] and max 64 chars."""
+    return re.sub(r"[^A-Za-z0-9\-.]", "-", s)
+
+
 async def publish_brief(fhir: FhirClient, text: str) -> dict | None:
     if not enabled():
         return None
+    comp_id = f"baton-out-brief-{_stamp()}"
     composition = {
         "resourceType": "Composition",
         "status": "preliminary",
@@ -58,7 +72,7 @@ async def publish_brief(fhir: FhirClient, text: str) -> dict | None:
         }}],
         "meta": _meta(),
     }
-    res = await fhir.create("Composition", composition)
+    res = await fhir.put("Composition", comp_id, composition)
     return {"id": res["id"], "url": f"{fhir.base_url}/Composition/{res['id']}"}
 
 
@@ -66,7 +80,8 @@ async def record_adopt(fhir: FhirClient, fid: str, pid: str,
                        topic: str, value: str, text: str) -> dict | None:
     if not enabled() or not fid:
         return None
-    return await fhir.create("Communication", {
+    comm_id = f"baton-out-{pid}-adopt-{_id_part(topic)}-{_stamp()}"[:64]
+    return await fhir.put("Communication", comm_id, {
         "resourceType": "Communication",
         "status": "completed",
         "subject": {"reference": f"Patient/{fid}"},
@@ -163,6 +178,10 @@ async def delete_outputs(fhir: FhirClient, fids: list[str]) -> int:
     to_delete += [r for r in await fhir.search("Composition", _tag=OUTPUT_TAG, _count=100)
                   if is_output(r)]
     for r in to_delete:
+        if not str(r.get("id", "")).startswith("baton-out-"):
+            log.warning("skipping delete of non-baton resource %s/%s",
+                        r.get("resourceType"), r.get("id"))
+            continue
         await fhir.delete(r["resourceType"], r["id"])
         deleted += 1
     return deleted
