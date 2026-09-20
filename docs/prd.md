@@ -256,7 +256,7 @@ Lock this before splitting implementation. FHIR resource shapes are the chart; *
 
 CORS must allow `http://localhost:5173` and the deployed Vercel origin(s).
 
-Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) may live in memory only — Render cold starts reset them. That is acceptable: re-do the demo action after a wake rather than persisting demo state.
+Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) may live in memory only — Render cold starts reset them. That is acceptable: re-do the demo action after a wake rather than persisting demo state. Demo state is scoped per `X-Session-Id` (the frontend mints one per browser into localStorage), so each judge gets an independent sandbox; requests without the header share a default session.
 
 ### 8.2 `POST /extract`
 

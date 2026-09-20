@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
@@ -122,6 +122,11 @@ async def _panel_ready() -> None:
     await fhir_panel.ensure_loaded(fhir)
 
 
+def _session(x_session_id: str | None = Header(default=None)) -> dict:
+    """Per-browser demo state: X-Session-Id keeps each judge's panel isolated."""
+    return state.for_session(x_session_id)
+
+
 def _patient_or_404(pid: str) -> dict:
     p = panel.get_patient(pid)
     if p is None:
@@ -129,8 +134,8 @@ def _patient_or_404(pid: str) -> dict:
     return p
 
 
-def _issue_or_404(pid: str, issue_id: str) -> dict:
-    issue = next((i for i in rules.get_issues(_patient_or_404(pid), state.STATE)
+def _issue_or_404(pid: str, issue_id: str, s: dict) -> dict:
+    issue = next((i for i in rules.get_issues(_patient_or_404(pid), s)
                   if i["id"] == issue_id), None)
     if issue is None:
         raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -138,19 +143,19 @@ def _issue_or_404(pid: str, issue_id: str) -> dict:
 
 
 @app.get("/patients")
-async def list_panel_patients() -> list[dict]:
+async def list_panel_patients(s: dict = Depends(_session)) -> list[dict]:
     await _panel_ready()
-    return [panel.build_patient(p) for p in panel.load_patients()]
+    return [panel.build_patient(p, s) for p in panel.load_patients()]
 
 
 @app.get("/patients/{pid}")
-async def get_panel_patient(pid: str) -> dict:
+async def get_panel_patient(pid: str, s: dict = Depends(_session)) -> dict:
     await _panel_ready()
-    return panel.build_patient(_patient_or_404(pid))
+    return panel.build_patient(_patient_or_404(pid), s)
 
 
 @app.post("/patients/{pid}/notes")
-async def add_note(pid: str, body: NoteIn) -> dict:
+async def add_note(pid: str, body: NoteIn, s: dict = Depends(_session)) -> dict:
     await _panel_ready()
     p = _patient_or_404(pid)
     if body.topic:
@@ -170,46 +175,47 @@ async def add_note(pid: str, body: NoteIn) -> dict:
             "text": text, "tags": tags}
     if body.reconcile:
         note["reconcile"] = True
-    panel.add_note(pid, note)
+    panel.add_note(pid, note, s)
     suffix = f" ({TOPICS[body.topic]['label']}: {body.value})" if body.topic else ""
-    state.log_act(pid, f"Added {body.role} note{suffix}")
-    return panel.build_patient(p)
+    state.log_act(s, pid, f"Added {body.role} note{suffix}")
+    return panel.build_patient(p, s)
 
 
 @app.patch("/issues/{issue_id}")
-async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
+async def patch_issue(issue_id: str, body: IssuePatch,
+                      s: dict = Depends(_session)) -> dict:
     await _panel_ready()
     parts = issue_id.split(":", 2)
     pid = parts[0] if len(parts) == 3 else issue_id.split(":")[0]
     p = _patient_or_404(pid)
-    S = state.STATE
+    S = s
     kind, rest = (parts[1], parts[2]) if len(parts) == 3 else (None, None)
 
     if body.action == "owner":
-        issue = _issue_or_404(pid, issue_id)
+        issue = _issue_or_404(pid, issue_id, S)
         if body.value:
             S["owners"][issue_id] = body.value
-            state.log_act(pid, f'Assigned "{issue["title"]}" to {body.value}')
+            state.log_act(S, pid, f'Assigned "{issue["title"]}" to {body.value}')
         else:
             S["owners"].pop(issue_id, None)
     elif body.action == "fill":
         if kind != "handoff" or rest not in {f["key"] for f in FIELDS}:
             raise HTTPException(404, f"unknown issue: {issue_id}")
-        _issue_or_404(pid, issue_id)
+        _issue_or_404(pid, issue_id, S)
         if not body.value:
             raise HTTPException(422, "value is required to fill a handoff field")
         S["filled"].setdefault(pid, {})[rest] = body.value
         label = next(f["label"] for f in FIELDS if f["key"] == rest)
-        state.log_act(pid, f"Added {label} to handoff")
+        state.log_act(S, pid, f"Added {label} to handoff")
     elif body.action == "pendingOwner":
         if kind != "handoff" or not rest or not rest.startswith("pend:"):
             raise HTTPException(404, f"unknown issue: {issue_id}")
-        _issue_or_404(pid, issue_id)
+        _issue_or_404(pid, issue_id, S)
         name = rest[len("pend:"):]
         if not body.value:
             raise HTTPException(422, "value is required to assign an owner")
         S["pendOwners"][f"{pid}|{name}"] = body.value
-        state.log_act(pid, f"Assigned {name} follow-up to {body.value}")
+        state.log_act(S, pid, f"Assigned {name} follow-up to {body.value}")
     elif body.action in ("clear", "escalate"):
         if kind != "blocker" or not rest:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -218,10 +224,10 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             raise HTTPException(404, f"unknown issue: {issue_id}")
         if body.action == "clear":
             S["cleared"].setdefault(pid, {})[rest] = True
-            state.log_act(pid, f"Cleared blocker: {blocker['label']}")
+            state.log_act(S, pid, f"Cleared blocker: {blocker['label']}")
         else:
             S["escalated"][f"{pid}|{rest}"] = True
-            state.log_act(pid, f"Escalated blocker: {blocker['label']}")
+            state.log_act(S, pid, f"Escalated blocker: {blocker['label']}")
     elif body.action == "adopt":
         if kind != "conflict" or rest not in TOPICS:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -233,20 +239,21 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             "role": "Attending decision", "author": "Reconciled in Baton",
             "text": f"Reconciled {label}: proceed with {body.value}. "
                     "Earlier conflicting instructions are superseded.",
-            "tags": [[topic, body.value]], "reconcile": True})
-        state.log_act(pid, f"Reconciled {label} to {body.value}")
-    return panel.build_patient(p)
+            "tags": [[topic, body.value]], "reconcile": True}, s)
+        state.log_act(S, pid, f"Reconciled {label} to {body.value}")
+    return panel.build_patient(p, s)
 
 
 @app.get("/brief", response_class=PlainTextResponse)
-async def get_brief() -> str:
+async def get_brief(s: dict = Depends(_session)) -> str:
     await _panel_ready()
-    return panel.brief_text()
+    return panel.brief_text(s)
 
 
 @app.post("/demo/reset")
-async def demo_reset() -> dict:
-    state.reset()
+async def demo_reset(s: dict = Depends(_session)) -> dict:
+    s.clear()
+    s.update(state.fresh())
     return {"status": "ok"}
 
 

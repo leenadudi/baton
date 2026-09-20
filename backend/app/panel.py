@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 from app import demo_patients, fhir_panel, rules
-from app.state import STATE, log_act
 
 TYPE_LABEL = {"conflict": "Conflicting instructions", "handoff": "Incomplete handoff",
               "blocker": "Administrative blocker"}
@@ -33,40 +32,40 @@ def get_patient(pid: str) -> dict | None:
     return next((p for p in load_patients() if p["id"] == pid), None)
 
 
-def build_patient(p: dict) -> dict:
+def build_patient(p: dict, s: dict) -> dict:
     pid = p["id"]
-    filled = STATE["filled"].get(pid, {})
+    filled = s["filled"].get(pid, {})
     p["handoff"] = {**p["handoff"], **filled}
     for r in p["pending"]:
-        o = STATE["pendOwners"].get(f"{pid}|{r['name']}")
+        o = s["pendOwners"].get(f"{pid}|{r['name']}")
         if o is not None:
             r["owner"] = o
-    p["notes"] = sorted(rules.all_notes(p, STATE), key=lambda n: n.get("seq", 0))
-    issues = rules.get_issues(p, STATE)
+    p["notes"] = sorted(rules.all_notes(p, s), key=lambda n: n.get("seq", 0))
+    issues = rules.get_issues(p, s)
     for i in issues:
-        i["owner"] = STATE["owners"].get(i["id"], "")
+        i["owner"] = s["owners"].get(i["id"], "")
     p["issues"] = issues
     p["risk"] = rules.risk_of(issues)
     p["dischStatus"] = rules.disch_status(p, issues)
-    p["log"] = STATE["log"].get(pid, [])
+    p["log"] = s["log"].get(pid, [])
     return p
 
 
-def add_note(pid: str, note: dict) -> None:
-    note["seq"] = STATE["nextSeq"]
-    STATE["nextSeq"] += 1
+def add_note(pid: str, note: dict, s: dict) -> None:
+    note["seq"] = s["nextSeq"]
+    s["nextSeq"] += 1
     note["at"] = time.time() * 1000
     note.setdefault("h", 0)
-    STATE["added"].setdefault(pid, []).append(note)
+    s["added"].setdefault(pid, []).append(note)
 
 
-def brief_text() -> str:
+def brief_text(s: dict) -> str:
     all_items = []
     for p in load_patients():
-        for i in rules.get_issues(p, STATE):
+        for i in rules.get_issues(p, s):
             all_items.append({"p": p, "i": i})
     all_items.sort(key=lambda x: (-rules.W[x["i"]["sev"]], x["p"]["dischargeInH"]))
-    un = sum(1 for x in all_items if not STATE["owners"].get(x["i"]["id"]))
+    un = sum(1 for x in all_items if not s["owners"].get(x["i"]["id"]))
     lines = ["SHIFT HANDOFF BRIEF for 4 West (synthetic data)",
              f"{len(all_items)} open coordination issues, {un} with no owner.", ""]
     if not all_items:
@@ -76,7 +75,7 @@ def brief_text() -> str:
         lines.append(f"{k + 1}. [{i['sev'].upper()}] Rm {p['room']} {p['name']}: "
                      f"{TYPE_LABEL[i['type']]}. {i['title']}.")
         lines.append(f"   {i['sub']}")
-        lines.append(f"   Owner: {STATE['owners'].get(i['id']) or 'UNASSIGNED'}; "
+        lines.append(f"   Owner: {s['owners'].get(i['id']) or 'UNASSIGNED'}; "
                      f"discharge target in {p['dischargeInH']}h.")
         lines.append("")
     if len(all_items) > 14:

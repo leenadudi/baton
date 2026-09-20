@@ -9,7 +9,7 @@ from app.main import app
 def clean_state(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("PANEL_SOURCE", "demo")
-    state.reset()
+    state.reset_all()
     yield
 
 
@@ -114,3 +114,28 @@ def test_demo_reset():
     assert client.post("/demo/reset").json() == {"status": "ok"}
     ids = {i["id"] for i in patient("p2")["issues"]}
     assert "p2:handoff:codeStatus" in ids
+
+
+JUDGE_A = {"X-Session-Id": "judge-a"}
+JUDGE_B = {"X-Session-Id": "judge-b"}
+
+
+def test_sessions_are_isolated():
+    """One judge's mutation must not change another judge's panel."""
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=JUDGE_A)
+    a = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_A).json()["issues"]}
+    b = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_B).json()["issues"]}
+    default = {i["id"] for i in patient("p1")["issues"]}
+    assert "p1:blocker:b1" not in a
+    assert "p1:blocker:b1" in b
+    assert "p1:blocker:b1" in default
+
+
+def test_reset_only_clears_own_session():
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=JUDGE_A)
+    client.patch("/issues/p1:blocker:b2", json={"action": "clear"}, headers=JUDGE_B)
+    client.post("/demo/reset", headers=JUDGE_A)
+    a = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_A).json()["issues"]}
+    b = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_B).json()["issues"]}
+    assert "p1:blocker:b1" in a
+    assert "p1:blocker:b2" not in b
