@@ -12,6 +12,7 @@ Usage:
 
 import asyncio
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -21,6 +22,25 @@ from app.extract import extract  # noqa: E402
 
 EVAL_DIR = Path(__file__).resolve().parent.parent / "eval"
 SOURCES = ["synthetic_edge_cases.json", "mtsamples_candidates.json"]
+
+
+class _ApiFailureDetector(logging.Handler):
+    """extract() degrades an OpenAI failure to {"tags": []} - indistinguishable
+    from a genuine "no tags apply" result on any negative test case, which
+    would silently inflate the score. Watches the warning extract() already
+    logs on that path (added for exactly this kind of visibility) so a failed
+    call can be excluded from scoring instead of counted as correct."""
+
+    def __init__(self):
+        super().__init__(level=logging.WARNING)
+        self.failed = False
+
+    def emit(self, record):
+        self.failed = True
+
+
+_detector = _ApiFailureDetector()
+logging.getLogger("app.extract").addHandler(_detector)
 
 
 async def score_file(path: Path) -> bool:
@@ -33,10 +53,17 @@ async def score_file(path: Path) -> bool:
         return True
 
     exact = 0
+    api_failures = 0
     tp = fp = fn = 0
     for item in items:
         expected = {(t, v) for t, v in item["expected"]}
+        _detector.failed = False
         result = await extract(item["text"], role=item.get("role"))
+        if _detector.failed:
+            api_failures += 1
+            print(f"SKIP {item['id']}: OpenAI call failed, excluded from score "
+                  "(not counted as correct or incorrect)")
+            continue
         got = {(t["topic"], t["value"]) for t in result["tags"]}
         if got == expected:
             exact += 1
@@ -54,12 +81,14 @@ async def score_file(path: Path) -> bool:
         fp += len(got - expected)
         fn += len(expected - got)
 
+    scored = len(items) - api_failures
     precision = tp / (tp + fp) if tp + fp else 1.0
     recall = tp / (tp + fn) if tp + fn else 1.0
     skip_note = f" ({skipped} unlabeled skipped)" if skipped else ""
-    print(f"\n{path.name}: {exact}/{len(items)} exact match; "
-          f"tags precision {precision:.2f}, recall {recall:.2f}{skip_note}")
-    return True
+    fail_note = f" ({api_failures} excluded: OpenAI call failed)" if api_failures else ""
+    print(f"\n{path.name}: {exact}/{scored} exact match; "
+          f"tags precision {precision:.2f}, recall {recall:.2f}{skip_note}{fail_note}")
+    return api_failures == 0
 
 
 async def main() -> int:
