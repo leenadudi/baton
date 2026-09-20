@@ -91,6 +91,28 @@ def test_log_marks_ongoing_work_unresolved():
     assert log["Added Nursing note"] is False
 
 
+def test_reconciling_note_via_add_note_endpoint_is_resolved():
+    """POST /patients/:id/notes also accepts reconcile=true (a second path to
+    the same effect PATCH .../adopt has) — a tagged reconciling note genuinely
+    clears a conflict and should read as resolved, unlike a plain note."""
+    resp = client.post("/patients/p1/notes", json={
+        "role": "Attending", "topic": "anticoagulation", "value": "hold",
+        "text": "Reconciled: hold going forward.", "reconcile": True,
+    })
+    assert resp.status_code == 200
+    log = {e["text"]: e["resolved"] for e in patient("p1")["log"]}
+    assert log["Added Attending note (Anticoagulation: hold)"] is True
+
+    # An untagged reconcile=true note has no topic to clear, so it has no
+    # effect on any conflict and must not read as resolved.
+    resp = client.post("/patients/p1/notes", json={
+        "role": "Attending", "text": "Just a comment.", "reconcile": True,
+    })
+    assert resp.status_code == 200
+    log = {e["text"]: e["resolved"] for e in patient("p1")["log"]}
+    assert log["Added Attending note"] is False
+
+
 def test_assign_owner_shows_in_brief():
     resp = client.patch("/issues/p1:conflict:anticoagulation",
                         json={"action": "owner", "value": "Night Resident"})

@@ -180,8 +180,12 @@ async def add_note(pid: str, body: NoteIn) -> dict:
         note["reconcile"] = True
     panel.add_note(pid, note)
     suffix = f" ({TOPICS[body.topic]['label']}: {body.value})" if body.topic else ""
-    # Not resolved: a new note can introduce a conflict as easily as settle one.
-    state.log_act(pid, f"Added {body.role} note{suffix}", resolved=False)
+    # A reconciling note (rules.py's barrier) genuinely resolves a conflict —
+    # but only if it actually carries a tag for that topic; an untagged
+    # reconcile=true note has no effect on any conflict. Any other note is a
+    # new instruction, which can introduce a conflict as easily as settle one.
+    state.log_act(pid, f"Added {body.role} note{suffix}",
+                  resolved=bool(body.reconcile and tags))
     return panel.build_patient(p)
 
 
