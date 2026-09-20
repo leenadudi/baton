@@ -93,7 +93,16 @@ export default function PatientList({ patients, query }) {
                   <td>
                     <Link className="who" to={`/patients/${p.id}`}>
                       <span className="ini" aria-hidden="true">{initials(p.name)}</span>
-                      <span className="nm">{p.name}</span>
+                      <span>
+                        <span className="nm">{p.name}</span>
+                        {/* Age sits with the name because real handoff tools identify a
+                            patient that way: UNM's ED sheet rows are Room/Prov/Age-Sex/CC-Dx,
+                            and the SIGNOUT mnemonic's identifying data is "name, age,
+                            gender and diagnosis". Room is deliberately not doing this job --
+                            Joint Commission NPSG.01.01.01 does not accept room as an
+                            identifier. */}
+                        <span className="meta"> · {p.age}</span>
+                      </span>
                     </Link>
                   </td>
                   <td className="nact">
