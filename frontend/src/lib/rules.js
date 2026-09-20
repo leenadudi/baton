@@ -7,9 +7,37 @@ export function allNotes(p, state) {
   return p.notes.concat(state.added[p.id] || [])
 }
 
-function tagOf(n, topic) {
+export function tagOf(n, topic) {
   const t = n.tags.find((x) => x[0] === topic)
   return t ? t[1] : null
+}
+
+// Deterministic coordination suggestion for offline/mock mode — mirrors the
+// fallback branch of backend/app/suggest.py. Process steps only, never a
+// clinical answer, and never a winner when instructions conflict.
+export function suggestFor(issue) {
+  let text
+  if (issue.type === 'conflict') {
+    const roles = [...new Set(
+      Object.values(issue.vals || {}).flat().map((n) => n.role).filter(Boolean),
+    )].sort()
+    text = `Have the attending reconcile this one — ask ${roles.join(' and ') || 'each team'} ` +
+      'to confirm which instruction was last carried out before anyone follows ' +
+      'either. Baton flags conflicts; it does not pick the winner.'
+  } else if (issue.type === 'handoff') {
+    text = issue.fix?.kind === 'pending'
+      ? 'Assign a named owner for this pending result before shift change — ' +
+        'unowned follow-ups are the ones that come back abnormal and go unseen.'
+      : 'Fill this field before the next shift takes over — it is required ' +
+        'for a complete handoff.'
+  } else {
+    text = issue.escalated
+      ? 'Escalation is logged — confirm the charge nurse or bed coordinator ' +
+        'has seen it, and note the expected resolution time in the handoff.'
+      : 'Assign an owner and confirm with whoever it is waiting on; if it has ' +
+        'not moved by the next check-in, escalate to the charge nurse.'
+  }
+  return { text, source: 'rules' }
 }
 
 export function ago(n) {

@@ -245,3 +245,17 @@ button,.chip,.pt,.btn{touch-action:manipulation;}
 /* Collapse the rail to give a long conflict card the full width. */
 .grid.solo{grid-template-columns:minmax(0,1fr);}
 .grid.solo .list{display:none;}
+
+/* Issue-card provenance + suggestion — additive; sits under each card body. */
+.prov{margin-top:10px;border-top:1px solid var(--line);padding-top:6px;}
+.prov summary{cursor:pointer;font-size:12px;color:var(--ink-2);user-select:none;}
+.prov summary:hover{color:var(--ink);}
+.prov-rule{font-size:12.5px;color:var(--ink-2);margin:8px 0 0;max-width:80ch;}
+.prov-src{list-style:none;padding:0;margin:6px 0 0;font-size:12.5px;color:var(--ink-2);}
+.prov-src li{padding:2px 0;}
+.prov-src b{color:var(--ink);}
+.sug-wrap{margin-top:10px;}
+.btn.suggest{background:var(--blocker-bg);border-color:var(--blocker);color:var(--blocker);font-weight:600;}
+.btn.suggest:hover{background:var(--blocker);color:var(--surface);border-color:var(--blocker);}
+.btn.suggest:disabled{opacity:.6;}
+.sug{font-size:13.5px;margin:8px 0 0;max-width:80ch;}

@@ -15,7 +15,7 @@ from typing import Literal
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import fhir_panel, fhir_write, panel, rules, state
+from app import fhir_panel, fhir_write, panel, rules, state, suggest
 from app import store as store_mod
 from app.extract import extract
 from app.fhir_client import FhirClient
@@ -393,6 +393,18 @@ async def patch_issue(issue_id: str, body: IssuePatch,
         _record(ctx, pid, f"Reconciled {label} to {body.value}",
                 "adopt", issue_id)
     return panel.build_patient(p, ctx.s)
+
+
+@app.post("/issues/{issue_id}/suggest")
+async def suggest_issue(issue_id: str, ctx: _Ctx = Depends(_ctx)) -> dict:
+    """Coordination next-step for one issue — process suggestions only, never
+    a clinical answer (see app/suggest.py's system prompt)."""
+    await _panel_ready()
+    parts = issue_id.split(":", 2)
+    pid = parts[0] if len(parts) == 3 else issue_id.split(":")[0]
+    p = _patient_or_404(pid)
+    issue = _issue_or_404(pid, issue_id, ctx.s)
+    return await suggest.for_issue(issue, p)
 
 
 async def _write(ctx: _Ctx, coro, pid: str):

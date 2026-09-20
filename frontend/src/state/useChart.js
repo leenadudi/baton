@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import { FIELDS, PATIENTS } from '../data/chart.js'
-import { allNotes, briefText, dischStatus, getIssues, riskOf } from '../lib/rules.js'
+import { allNotes, briefText, dischStatus, getIssues, riskOf, suggestFor } from '../lib/rules.js'
 import { useDemoState } from './useDemoState.js'
 
 // Render Free cold starts measured at ~15s. Six seconds of a bare loading line
@@ -112,6 +112,12 @@ export function useChart(doctor) {
     reset: () => onApi
       ? api.reset().then(api.listPatients).then(setServed)
       : mockActions.reset(),
+
+    // Coordination suggestion — the server's version may be model-written;
+    // offline mode serves the same deterministic rule text locally.
+    suggest: (issue) => onApi
+      ? api.suggest(issue.id)
+      : Promise.resolve(suggestFor(issue)),
 
     // Server owns the brief when available, so it cannot drift from the cards.
     getBrief: () => onApi ? api.brief() : Promise.resolve(briefText(PATIENTS, mockState)),
