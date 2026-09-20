@@ -4,7 +4,7 @@
 
 Epic and Oracle Health already ship shift-handoff forms. Those forms are empty — clinicians retype the same information into them every shift. Baton fills the form in and tells you what's still missing.
 
-**Live demo:** `<!-- paste the Vercel URL here -->` · **API:** [baton-mf85.onrender.com](https://baton-mf85.onrender.com) (Render free tier — first request after idle can take ~30s to wake up)
+**Live demo:** [batoncom.vercel.app](https://batoncom.vercel.app) · **API:** [baton-mf85.onrender.com](https://baton-mf85.onrender.com) (Render free tier — first request after idle can take ~30s to wake up)
 
 ## What it does
 
@@ -24,7 +24,7 @@ This is the architectural rule the whole system is built around, and it's what m
 
 Free-text clinical notes go through an OpenAI (`gpt-4o-mini`) extraction step that returns structured `{role, topic, value}` tags — nothing more. A separate, deterministic Python rule engine, ported line-for-line from the original working prototype, is the *only* thing that decides what counts as a conflict, an incomplete field, or an aged blocker. The model never classifies an issue type and never picks a winning instruction. That separation means every flag traces back to one specific note or FHIR resource, never to a model's own judgment call.
 
-Scored against the six demo patients' hand-tagged notes: **16/16 exact match, precision/recall 1.00** (`scripts/score_extraction.py`). A second, harder evaluation set (`eval/synthetic_edge_cases.json`, `scripts/score_hard_cases.py`) exists specifically because that number alone doesn't prove generalization — those notes and their tags were written together. The harder set includes deliberate traps (past-tense narration, patient/family wishes, decoy keywords) and is scored separately, never blended into one headline number.
+Scored against the six demo patients' hand-tagged notes: **16/16 exact match, precision/recall 1.00** (`scripts/score_extraction.py`) — though that number alone doesn't prove generalization, since those notes and their tags were written together. A second, harder evaluation set with deliberate traps (past-tense narration, patient/family wishes, decoy keywords), scored separately and never blended into one headline number, is in review on [#39](https://github.com/leenadudi/baton/pull/39).
 
 ## FHIR-native — no custom data model
 
@@ -74,7 +74,6 @@ Deployed on **Render** (FastAPI) and **Vercel** (React SPA). Render's free tier 
 backend/                       FastAPI application — FHIR client, rule engine, extraction endpoint
 frontend/                      React + Vite application
 frontend/public/prototype.html Standalone working UI prototype (rule engine over hardcoded demo data) — reference while porting to React
-eval/                          Extraction evaluation sets (synthetic edge cases; MTSamples, hand-labeled)
 scripts/                       Data loading, fixture generation, and extraction scoring
 ```
 
@@ -137,8 +136,9 @@ Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append it
 cd backend
 set -a; source .env; set +a      # loads OPENAI_API_KEY from backend/.env
 python3 ../scripts/score_extraction.py    # prototype notes: 16/16 exact match
-python3 ../scripts/score_hard_cases.py    # harder synthetic + (once labeled) MTSamples cases, scored separately
 ```
+
+A second, harder eval set (`eval/`, `scripts/score_hard_cases.py`) is in review on [#39](https://github.com/leenadudi/baton/pull/39).
 
 ### Demo fixtures
 
