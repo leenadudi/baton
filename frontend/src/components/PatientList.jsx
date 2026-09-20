@@ -20,7 +20,7 @@ const SORTS = [
 // issues[0] is the next thing to move on this patient.
 const NEXT_VERB = { conflict: 'Reconcile', handoff: 'Complete', blocker: 'Unblock' }
 
-const initials = (name) =
+const initials = (name) =>
   name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
 // Table layout borrowed from the reference dashboard: aligned columns scan faster
