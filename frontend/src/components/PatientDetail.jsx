@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useOutletContext, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { DS_LABEL, FIELDS, TOPICS } from '../data/chart.js'
 import { ago, handoffProgress } from '../lib/rules.js'
 import IssueCard from './IssueCard.jsx'
@@ -32,9 +32,8 @@ function InfoList({ title, items, render }) {
   )
 }
 
-export default function PatientDetail() {
+export default function PatientDetail({ patients, actions }) {
   const { patientId } = useParams()
-  const { patients, actions } = useOutletContext()
   const [filter, setFilter] = useState('all')
   // Route component is reused across patients; reset the filter like the prototype does on select.
   useEffect(() => setFilter('all'), [patientId])
