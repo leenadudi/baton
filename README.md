@@ -24,7 +24,7 @@ Standard FHIR resources — no custom data model:
 | Consults / referrals | `ServiceRequest` |
 | Follow-up owner, admin blockers | `Task` |
 
-Free-text notes go through an extraction step (OpenAI API) that returns the same `{role, topic, value}` tags a rule engine already uses to detect conflicts — the model reads, the rules decide, so every flag stays auditable back to a source note.
+Free-text notes go through an extraction step (OpenAI API) that returns the same `{role, topic, value}` tags a rule engine already uses to detect conflicts — the model reads, the rules decide, so every flag stays auditable back to a source note. Scored against the six prototype patients' hand-written tags: 16/16 notes exact match, precision/recall 1.00 (`scripts/score_extraction.py`).
 
 Write-back is deliberately minimal: Baton generates the handoff brief, a clinician reviews and copies it. No write permissions back to the chart.
 
