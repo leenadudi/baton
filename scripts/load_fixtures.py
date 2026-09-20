@@ -364,7 +364,7 @@ def wipe_controlled(client: httpx.Client, base: str, patient_ref_str: str) -> in
 
 
 def update_patient(client: httpx.Client, base: str, persona: dict,
-                   mapping: dict) -> None:
+                   mapping: dict) -> bool:
     """Set display name, demographics + familyContact on the mapped Patient.
 
     The loaded Synthea patients are random people; the persona's gender and
@@ -374,7 +374,7 @@ def update_patient(client: httpx.Client, base: str, persona: dict,
     pid = mapping["fhirPatientId"].split("/", 1)[1]
     patient = request(client, "GET", f"{base}/Patient/{pid}", headers=FHIR_ACCEPT)
     if not patient:
-        return
+        return False
     for key in ("gender", "birthDate"):
         if mapping.get(key):
             patient[key] = mapping[key]
@@ -390,7 +390,8 @@ def update_patient(client: httpx.Client, base: str, persona: dict,
         }]
     else:
         patient.pop("contact", None)
-    request(client, "PUT", f"{base}/Patient/{pid}", json=patient, headers=FHIR_JSON)
+    return request(client, "PUT", f"{base}/Patient/{pid}", json=patient,
+                   headers=FHIR_JSON) is not None
 
 
 def main() -> int:
@@ -429,9 +430,11 @@ def main() -> int:
         if args.patients_only:
             for pid in by_patient:
                 print(f"[{pid}] {personas[pid]['name']} -> {demo_map[pid]['fhirPatientId']}")
-                update_patient(client, base, personas[pid], demo_map[pid])
-            print("Done")
-            return 0
+                if not update_patient(client, base, personas[pid], demo_map[pid]):
+                    failed += 1
+                    print(f"    FAILED {demo_map[pid]['fhirPatientId']}")
+            print(f"Done ({failed} failures)")
+            return 1 if failed else 0
         for res in shared.values():
             if request(client, "PUT", f"{base}/{res['resourceType']}/{res['id']}",
                        json=res, headers=FHIR_JSON) is None:
@@ -443,7 +446,9 @@ def main() -> int:
             deleted = wipe_controlled(client, base, ref)
             if deleted:
                 print(f"    wiped {deleted} pre-existing controlled resources")
-            update_patient(client, base, persona, demo_map[pid])
+            if not update_patient(client, base, persona, demo_map[pid]):
+                failed += 1
+                print(f"    FAILED {ref}")
             for res in resources:
                 if request(client, "PUT",
                            f"{base}/{res['resourceType']}/{res['id']}",
