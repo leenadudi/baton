@@ -36,25 +36,6 @@ function OwnerSuggestion({ sug, onAssign }) {
 }
 
 function ConflictBody({ issue, actions }) {
-  const sug = useSuggestion(actions.suggestClarify)
-  const [msg, setMsg] = useState(null)
-  const [copied, setCopied] = useState('')
-
-  const draft = async () => {
-    setMsg(null)
-    await sug.run(issue.id)
-    setCopied('')
-  }
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(msg ?? sug.data.message)
-      setCopied('Copied')
-    } catch {
-      setCopied('')
-    }
-  }
-
   return (
     <>
       <p className="why">{issue.why} Pick the instruction that should stand — Baton never picks for you.</p>
@@ -77,23 +58,6 @@ function ConflictBody({ issue, actions }) {
           </div>
         ))}
       </div>
-      <div className="row-act">
-        <SuggestButton loading={sug.loading} onClick={draft}>Draft a clarifying message to both authors</SuggestButton>
-        {sug.error && <span className="tag">{sug.error}</span>}
-      </div>
-      {sug.data?.message && (
-        <SuggestBox onDismiss={() => { setMsg(null); sug.clear() }} label="Draft message">
-          <textarea
-            aria-label="Clarifying message draft"
-            value={msg ?? sug.data.message}
-            onChange={(e) => setMsg(e.target.value)}
-          />
-          <div className="row-act end">
-            <span className="tag" aria-live="polite">{copied}</span>
-            <button className="btn small primary" onClick={copy}>Copy message</button>
-          </div>
-        </SuggestBox>
-      )}
     </>
   )
 }

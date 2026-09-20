@@ -36,33 +36,6 @@ def fake_ask(payload):
     return _fake
 
 
-def test_clarify_returns_message(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test")
-    monkeypatch.setattr(suggest, "_ask",
-                        fake_ask({"message": "Drs disagree on diet — which stands?"}))
-    _, issue = find_issue("conflict")
-    resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["advisory"] is True
-    assert body["message"].startswith("Drs disagree")
-
-
-def test_clarify_nonstring_message(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test")
-    monkeypatch.setattr(suggest, "_ask",
-                        fake_ask({"message": {"text": "x"}}))
-    _, issue = find_issue("conflict")
-    resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
-    assert resp.json()["message"] == ""
-
-
-def test_clarify_wrong_type_400():
-    _, issue = find_issue("blocker")
-    resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
-    assert resp.status_code == 400
-
-
 def test_owner_outside_allowed_is_none(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test")
     monkeypatch.setattr(suggest, "_ask",
@@ -193,6 +166,13 @@ def test_huddle_returns_script(monkeypatch):
     assert resp.json() == {"advisory": True, "script": "Room by room: ..."}
 
 
+def test_huddle_nonstring_script(monkeypatch):
+    """Non-string model output is coerced to "" rather than leaked."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test")
+    monkeypatch.setattr(suggest, "_ask", fake_ask({"script": {"text": "x"}}))
+    assert client.post("/suggest/huddle").json()["script"] == ""
+
+
 def test_suggest_does_not_save_state(monkeypatch):
     """Read-only ctx: a slow suggestion await must not overwrite another
     clinician's concurrent mutation."""
@@ -202,9 +182,9 @@ def test_suggest_does_not_save_state(monkeypatch):
     saves = []
     monkeypatch.setattr(store_mod.get_store(), "save_state",
                         lambda scope, s: saves.append(scope))
-    _, issue = find_issue("conflict")
+    _, issue = find_issue("blocker")
     saves.clear()  # GET /patients itself persists via _ctx
-    assert client.post("/suggest/clarify",
+    assert client.post("/suggest/owner",
                        json={"issue_id": issue["id"]}).status_code == 200
     assert client.post("/suggest/huddle").status_code == 200
     assert saves == []
@@ -216,6 +196,6 @@ def test_suggest_does_not_save_state(monkeypatch):
 
 
 def test_no_key_is_503():
-    _, issue = find_issue("conflict")
-    resp = client.post("/suggest/clarify", json={"issue_id": issue["id"]})
+    _, issue = find_issue("blocker")
+    resp = client.post("/suggest/owner", json={"issue_id": issue["id"]})
     assert resp.status_code == 503

@@ -13,8 +13,7 @@ from fastapi import HTTPException
 from openai import AsyncOpenAI, OpenAIError
 
 from app import rules
-from app.suggest_prompts import (
-    CLARIFY_SYSTEM, FIELD_SYSTEM, HUDDLE_SYSTEM, OWNER_SYSTEM)
+from app.suggest_prompts import FIELD_SYSTEM, HUDDLE_SYSTEM, OWNER_SYSTEM
 
 log = logging.getLogger(__name__)
 
@@ -53,21 +52,6 @@ def _str(v) -> str:
 def _note_line(note: dict) -> str:
     return f"{note.get('role', '?')}, {note.get('author', '?')}, " \
            f"{note.get('h', '?')}h ago: {note.get('text', '')}"
-
-
-async def clarify(issue: dict, patient: dict) -> dict:
-    """Draft a neutral message asking the note authors which instruction stands."""
-    topic = issue.get("topic", "")
-    label = rules.TOPICS.get(topic, {}).get("label", topic)
-    lines = [f"Patient: {patient.get('name')} (Rm {patient.get('room')})",
-             f"Topic with conflicting instructions: {label}", ""]
-    for value, notes in (issue.get("vals") or {}).items():
-        lines.append(f"Instruction: {value}")
-        for n in notes:
-            lines.append(f"  - {_note_line(n)}")
-        lines.append("")
-    res = await _ask(CLARIFY_SYSTEM, "\n".join(lines))
-    return {"advisory": True, "message": _str(res.get("message"))}
 
 
 async def owner(issue: dict, patient: dict, allowed: list[str]) -> dict:

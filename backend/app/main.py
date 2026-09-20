@@ -449,15 +449,6 @@ def _suggest_target(issue_id: str, s: dict) -> tuple[dict, dict]:
     return p, _issue_or_404(pid, issue_id, s)
 
 
-@app.post("/suggest/clarify")
-async def suggest_clarify(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
-    await _panel_ready()
-    p, issue = _suggest_target(body.issue_id, ctx.s)
-    if issue["type"] != "conflict":
-        raise HTTPException(400, "clarify applies to conflict issues only")
-    return await suggest.clarify(issue, p)
-
-
 @app.post("/suggest/owner")
 async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
     await _panel_ready()

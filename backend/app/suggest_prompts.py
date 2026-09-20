@@ -13,16 +13,6 @@ GUARDRAILS = (
     "Return only the JSON object requested."
 )
 
-CLARIFY_SYSTEM = GUARDRAILS + (
-    "\n\nTask: two or more clinicians have written contradictory instructions for "
-    "the same topic. Draft a short, neutral message (2-4 sentences) that the "
-    "handoff nurse can send to the authors asking which instruction should stand "
-    "right now. Address it to the authors by role and name as given. Quote or "
-    "paraphrase each instruction with who wrote it and when. Do not favour either "
-    "instruction and do not propose a compromise.\n"
-    'Respond as {"message": "<text>"}.'
-)
-
 OWNER_SYSTEM = GUARDRAILS + (
     "\n\nTask: an administrative blocker or pending result on a patient has no "
     "owner. From the allowed owner list, pick the single owner role most likely "
