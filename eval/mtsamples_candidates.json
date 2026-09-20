@@ -1,0 +1,4 @@
+{
+  "_comment": "Second eval set (extraction_context.md task 3): 15-20 excerpts from the MTSamples dataset (Kaggle, CC0 - search 'mtsamples'), chosen by keyword filtering plus hand selection, covering diet/anticoagulation/weight-bearing/isolation/destination/fluids with deliberate traps (patient wish, past-tense event, blank isolation placeholder, 'continue IV fluids' which has no Baton value, generic advice). EMPTY for now: needs the actual mtsamples.csv, which requires Kaggle credentials this environment doesn't have. Do not commit mtsamples.csv itself (large, public on Kaggle) - only the selected excerpt text belongs in this file. Schema per item: {id, role, text, expected}. role and expected are intentionally left for Nicole to hand-label BEFORE running the model against them - do not derive them from the model's own output, or the eval stops measuring anything.",
+  "items": []
+}
