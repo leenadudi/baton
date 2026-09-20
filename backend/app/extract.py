@@ -46,6 +46,6 @@ async def extract(text: str, role: str | None = None) -> dict:
         if topic in TOPICS and value in TOPICS[topic]["values"] and topic not in seen:
             seen.add(topic)
             tags.append({"topic": topic, "value": value})
-    result = {"role": role, "tags": tags, "reconcile": bool(parsed.get("reconcile"))}
+    result = {"role": role, "tags": tags}
     _cache[key] = dict(result)
     return result

@@ -19,7 +19,7 @@
   "subject": {
     "reference": "Patient/42157"
   },
-  "date": "2026-09-19T18:26:02Z",
+  "date": "2026-09-19T20:32:59Z",
   "author": [
     {
       "reference": "Practitioner/baton-prac-k-adeyemi-rn",
@@ -31,7 +31,7 @@
     {
       "attachment": {
         "contentType": "text/plain",
-        "data": "RGF1Z2h0ZXIgc2F5cyB0aGUgZmFtaWx5IGV4cGVjdHMgaGVyIHRvIGNvbWUgaG9tZSBGcmlkYXku"
+        "data": "RGlzY2hhcmdlIHBsYW4gb24gY2FyZSBib2FyZDogaG9tZSBGcmlkYXkgd2l0aCBkYXVnaHRlci4gSG9tZSBoZWFsdGggbm90IHlldCBhcnJhbmdlZC4="
       }
     }
   ],

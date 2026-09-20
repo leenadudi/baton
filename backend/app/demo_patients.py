@@ -36,7 +36,7 @@ DEMO_PATIENTS = [
           "text": "Hgb 8.1, down from 9.6. Recommend holding enoxaparin until repeat Hgb is resulted.",
           "tags": [["anticoagulation", "hold"]]},
          {"role": "Nursing", "author": "K. Adeyemi, RN", "h": 4,
-          "text": "Daughter says the family expects her to come home Friday.",
+          "text": "Discharge plan on care board: home Friday with daughter. Home health not yet arranged.",
           "tags": [["destination", "home"]]}]},
 
     {"id": "p2", "name": "Robert C.", "age": 64, "room": "407",
