@@ -1,0 +1,24 @@
+# Render Free sleeps after ~15 minutes idle, and a cold start takes up to a
+# minute — long enough for a judge to see an empty panel (PRD 6.1, docs/prd.md:213).
+# Pinging the health endpoint keeps the instance hot.
+#
+# GitHub's scheduled runs are best-effort and can be delayed under load, so this
+# reduces the odds of a cold start rather than eliminating them. Still warm the
+# API by hand right before a judging slot.
+name: Keep Render warm
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the API health endpoint
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 \
+            https://baton-mf85.onrender.com/api/health)
+          echo "health -> $code"
+          test "$code" = "200"

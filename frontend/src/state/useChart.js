@@ -10,6 +10,8 @@ import { FIELDS, PATIENTS } from '../data/chart.js'
 import { allNotes, briefText, dischStatus, getIssues, riskOf } from '../lib/rules.js'
 import { useDemoState } from './useDemoState.js'
 
+const COLD_START_MS = 6000
+
 // Reshape a mock patient + demo state into exactly what GET /patients returns.
 function normalize(p, s) {
   const issues = getIssues(p, s).map((i) => ({ ...i, owner: s.owners[i.id] || null }))
@@ -36,11 +38,20 @@ export function useChart() {
 
   useEffect(() => {
     let live = true
+    // Render Free cold-starts take up to a minute and fetch has no default
+    // deadline, so without this the panel sits on "Loading…" indefinitely.
+    // Show the local engine meanwhile; the .then below upgrades to live data
+    // whenever the backend does wake up.
+    const coldStart = setTimeout(
+      () => { if (live) setStatus((cur) => (cur === 'loading' ? 'mock' : cur)) },
+      COLD_START_MS,
+    )
     api.listPatients()
       .then((ps) => { if (live) { setServed(ps); setStatus('api') } })
       .catch(() => { if (live) setStatus('mock') })
+      .finally(() => clearTimeout(coldStart))
     api.health().then((h) => { if (live) setFhirWrite(!!h?.panel?.fhir_write) }).catch(() => {})
-    return () => { live = false }
+    return () => { live = false; clearTimeout(coldStart) }
   }, [])
 
   const patients = useMemo(
