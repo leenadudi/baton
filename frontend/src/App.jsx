@@ -16,7 +16,10 @@ function Panel() {
   if (status === 'loading') {
     return (
       <div className="wrap">
-        <p className="intro" role="status" aria-live="polite">Loading the unit panel…</p>
+        <p className="intro" role="status" aria-live="polite">
+          Loading the unit panel… <span className="tag">The API sleeps when idle, so a first
+          request can take a few seconds. Demo data appears meanwhile.</span>
+        </p>
       </div>
     )
   }
