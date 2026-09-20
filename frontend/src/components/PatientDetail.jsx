@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 import { DS_LABEL, FIELDS, TOPICS } from '../data/chart.js'
-import { ago, allNotes, dischStatus, handoffProgress } from '../lib/rules.js'
+import { ago, handoffProgress } from '../lib/rules.js'
 import IssueCard from './IssueCard.jsx'
 import AddNoteForm from './AddNoteForm.jsx'
 
@@ -9,13 +9,13 @@ const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps
 
 export default function PatientDetail() {
   const { patientId } = useParams()
-  const { rows, state, actions } = useOutletContext()
+  const { patients, actions } = useOutletContext()
   const [filter, setFilter] = useState('all')
   // Route component is reused across patients; reset the filter like the prototype does on select.
   useEffect(() => setFilter('all'), [patientId])
-  const row = rows.find((r) => r.p.id === patientId)
+  const p = patients.find((x) => x.id === patientId)
 
-  if (!row) {
+  if (!p) {
     return (
       <main>
         <div className="empty">
@@ -26,16 +26,16 @@ export default function PatientDetail() {
     )
   }
 
-  const { p, issues } = row
-  const st = dischStatus(p, issues)
-  const hp = handoffProgress(p, state)
+  const issues = p.issues
+  const st = p.dischStatus
+  const hp = handoffProgress(p)
   const hotTopics = {}
   issues.forEach((i) => { if (i.type === 'conflict') hotTopics[i.topic] = true })
   const shown = issues.filter((i) => filter === 'all' || i.type === filter)
   const counts = { all: issues.length, conflict: 0, handoff: 0, blocker: 0 }
   issues.forEach((i) => counts[i.type]++)
-  const notes = [...allNotes(p, state)].sort((a, b) => b.seq - a.seq)
-  const log = state.log[p.id] || []
+  const notes = [...p.notes].sort((a, b) => b.seq - a.seq)
+  const log = p.log || []
 
   return (
     <main>
@@ -75,7 +75,7 @@ export default function PatientDetail() {
         </div>
         {shown.length ? (
           shown.map((i) => (
-            <IssueCard key={i.id} issue={i} owner={state.owners[i.id]} actions={actions} />
+            <IssueCard key={i.id} issue={i} actions={actions} />
           ))
         ) : (
           <div className="empty">
@@ -94,8 +94,7 @@ export default function PatientDetail() {
         </div>
         <div className="hgrid">
           {FIELDS.map((f) => {
-            let v = (state.filled[p.id] || {})[f.key]
-            if (v === undefined) v = p.handoff[f.key]
+            const v = p.handoff[f.key]
             return (
               <div className={`hf ${v ? 'ok' : 'no'}`} key={f.key}>
                 <span className="ic" aria-hidden="true">{v ? '✓' : '!'}</span>
@@ -107,7 +106,7 @@ export default function PatientDetail() {
             )
           })}
           {p.pending.map((r) => {
-            const o = state.pendOwners[`${p.id}|${r.name}`] || r.owner
+            const o = r.owner
             return (
               <div className={`hf ${o ? 'ok' : 'no'}`} key={r.name}>
                 <span className="ic" aria-hidden="true">{o ? '✓' : '!'}</span>

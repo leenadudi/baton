@@ -1,20 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { PATIENTS } from './data/chart.js'
-import { briefText, getIssues } from './lib/rules.js'
-import { useDemoState } from './state/useDemoState.js'
+import { useChart } from './state/useChart.js'
 import SummaryTiles from './components/SummaryTiles.jsx'
 import PatientList from './components/PatientList.jsx'
 import PatientDetail from './components/PatientDetail.jsx'
 import BriefModal from './components/BriefModal.jsx'
 
 function Panel() {
-  const [state, actions] = useDemoState()
-  const [briefOpen, setBriefOpen] = useState(false)
-  const rows = useMemo(
-    () => PATIENTS.map((p) => ({ p, issues: getIssues(p, state) })),
-    [state],
-  )
+  const { patients, status, actions } = useChart()
+  const [brief, setBrief] = useState(null)
+
+  const openBrief = () => actions.getBrief().then(setBrief)
+
+  if (status === 'loading') {
+    return (
+      <div className="wrap">
+        <p className="intro" role="status" aria-live="polite">Loading the unit panel…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="wrap">
@@ -34,7 +38,10 @@ function Panel() {
         <div className="actions">
           <span className="pill"><b>4 West</b> medical-surgical unit</span>
           <span className="pill">Synthetic data, no PHI</span>
-          <button className="btn primary" onClick={() => setBriefOpen(true)}>Shift brief</button>
+          <span className="pill" title={status === 'api' ? 'Issues computed by the backend rule engine' : 'Backend unreachable — running the local demo engine'}>
+            {status === 'api' ? 'Live chart' : 'Offline demo data'}
+          </span>
+          <button className="btn primary" onClick={openBrief}>Shift brief</button>
           <button className="btn ghost" onClick={actions.reset}>Reset demo</button>
         </div>
       </header>
@@ -56,11 +63,11 @@ function Panel() {
         </ul>
       </details>
 
-      <SummaryTiles rows={rows} owners={state.owners} />
+      <SummaryTiles patients={patients} />
 
       <div className="grid">
-        <PatientList rows={rows} />
-        <Outlet context={{ rows, state, actions }} />
+        <PatientList patients={patients} />
+        <Outlet context={{ patients, actions }} />
       </div>
 
       <p className="foot">
@@ -68,8 +75,8 @@ function Panel() {
         and does not replace clinical judgment or hospital policy.
       </p>
 
-      {briefOpen && (
-        <BriefModal text={briefText(PATIENTS, state)} onClose={() => setBriefOpen(false)} />
+      {brief !== null && (
+        <BriefModal text={brief} onClose={() => setBrief(null)} />
       )}
     </div>
   )

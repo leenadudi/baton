@@ -113,15 +113,12 @@ export function dischStatus(p, issues) {
   return issues.length ? 'watch' : 'ready'
 }
 
-export function handoffProgress(p, state) {
+// Takes an already-overlaid patient, so it works the same on API and mock data.
+export function handoffProgress(p) {
   const total = FIELDS.length + p.pending.length
   let done = 0
-  FIELDS.forEach((f) => {
-    let v = (state.filled[p.id] || {})[f.key]
-    if (v === undefined) v = p.handoff[f.key]
-    if (v) done++
-  })
-  p.pending.forEach((r) => { if (state.pendOwners[`${p.id}|${r.name}`] || r.owner) done++ })
+  FIELDS.forEach((f) => { if (p.handoff[f.key]) done++ })
+  p.pending.forEach((r) => { if (r.owner) done++ })
   return { done, total, pct: Math.round((done / total) * 100) }
 }
 
