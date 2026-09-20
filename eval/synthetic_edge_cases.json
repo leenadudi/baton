@@ -1,0 +1,61 @@
+{
+  "_comment": "Synthetic edge cases (extraction_context.md task 3) for gaps the MTSamples set may not cover. `expected` was drafted by Claude, grounded in policy already decided in extraction_context.md's 'Open labeling decisions' section and the existing prompt rules (v2's destination-naming rule, the closed TOPICS vocabulary) - not new judgment calls. Spot-check before treating as final ground truth. The other two items in that same 'Open labeling decisions' list are genuinely undecided policy questions, not something to guess here: does 'weightbearing as tolerated' map to full, or get no tag; does 'nursing home' map to SNF. Add cases for those once Nicole decides and writes the rule into the prompt.",
+  "items": [
+    {
+      "id": "syn-01",
+      "trap": "isolation precautions lifted -> none, not silence",
+      "role": "Nursing",
+      "text": "Contact precautions discontinued as of this AM per Infection Control; no isolation precautions required at this time.",
+      "expected": [["isolation", "none"]]
+    },
+    {
+      "id": "syn-02",
+      "trap": "fluid restriction, an underrepresented topic in the prototype set",
+      "role": "Cardiology",
+      "text": "Continue strict fluid restriction, 1.5 liters per 24 hours, for volume management.",
+      "expected": [["fluids", "restrict"]]
+    },
+    {
+      "id": "syn-03",
+      "trap": "conditional hold pending labs, phrased differently than the prototype's Margaret note",
+      "role": "Hospitalist",
+      "text": "Hold enoxaparin dosing until repeat hemoglobin is resulted; will reassess once labs return.",
+      "expected": [["anticoagulation", "hold"]]
+    },
+    {
+      "id": "syn-04",
+      "trap": "family wish, not an order -> no destination tag",
+      "role": "Nursing",
+      "text": "Family expressed hope that he can return home once he is stronger, though no specific timeline was discussed.",
+      "expected": []
+    },
+    {
+      "id": "syn-05",
+      "trap": "discharge-ready but no place named -> no destination tag (v2 prompt rule)",
+      "role": "Case Management",
+      "text": "Patient is medically ready for discharge; case management is still arranging transport.",
+      "expected": []
+    },
+    {
+      "id": "syn-06",
+      "trap": "past-tense hospital-course statement, not an active instruction",
+      "role": "Hospitalist",
+      "text": "Diet was advanced to regular during the prior shift without complication.",
+      "expected": []
+    },
+    {
+      "id": "syn-07",
+      "trap": "'continue IV fluids' has no Baton-recognized value (fluids is only restrict/encourage)",
+      "role": "Hospitalist",
+      "text": "Continue IV fluids at the current maintenance rate overnight.",
+      "expected": []
+    },
+    {
+      "id": "syn-08",
+      "trap": "generic advice with a decoy word - 'encourage' here is not fluids:encourage",
+      "role": "PT",
+      "text": "Encourage ambulation in the hallway twice daily and deep breathing exercises to prevent atelectasis.",
+      "expected": []
+    }
+  ]
+}
