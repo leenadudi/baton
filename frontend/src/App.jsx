@@ -1,9 +1,8 @@
 import { createContext, useContext, useState } from 'react'
-import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { useAuth } from './state/useAuth.js'
 import { useChart } from './state/useChart.js'
-import Sidebar from './components/Sidebar.jsx'
-import Icon from './components/Icon.jsx'
+import TopNav from './components/TopNav.jsx'
 import SummaryTiles from './components/SummaryTiles.jsx'
 import PatientList from './components/PatientList.jsx'
 import PatientDetail from './components/PatientDetail.jsx'
@@ -11,6 +10,7 @@ import BriefModal from './components/BriefModal.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import TeamModal from './components/TeamModal.jsx'
 import { DS_LABEL } from './data/chart.js'
+import { handoffProgress } from './lib/rules.js'
 
 const AuthCtx = createContext(null)
 
@@ -34,29 +34,16 @@ function Dashboard({ chart, auth, onBrief, onTeam }) {
 
   return (
     <div className="app">
-      <Sidebar query={query} onQuery={setQuery} onBrief={onBrief}
-        onReset={actions.reset} onTeam={onTeam} auth={auth} />
+      <TopNav query={query} onQuery={setQuery} status={<StatusPill status={status} />}
+        onTeam={onTeam} onBrief={onBrief} auth={auth} />
       <div className="main">
-        <header className="topbar">
-          <div>
-            <h1>Unit panel</h1>
-            <div className="sub">
-              Every open coordination issue on 4 West — conflicting instructions,
-              incomplete handoffs, and administrative work that has stopped moving.
-            </div>
-          </div>
-          <div className="grp">
-            <StatusPill status={status} />
-            <button className="btn primary" onClick={onBrief}>Shift brief</button>
-          </div>
-        </header>
-
         <div className="content">
           <SummaryTiles patients={patients} />
           <PatientList patients={patients} query={query} />
           <p className="foot">
             All patients, notes, and organisations in this demo are invented. Baton
             does not diagnose or recommend treatment.
+            {' '}<button className="lnk" onClick={actions.reset}>Reset demo data</button>
           </p>
         </div>
       </div>
@@ -71,18 +58,10 @@ function Profile({ chart, auth, onBrief, onTeam }) {
   const p = patients.find((x) => x.id === patientId)
 
   return (
-    <div className="app iconrail">
-      <Sidebar onBrief={onBrief} onReset={actions.reset} onTeam={onTeam} auth={auth} />
+    <div className="app">
+      <TopNav back status={<StatusPill status={status} />}
+        onTeam={onTeam} onBrief={onBrief} auth={auth} />
       <div className="main">
-        <header className="topbar">
-          <Link className="back" to="/patients">
-            <Icon name="back" /> Patients
-          </Link>
-          <div className="grp">
-            <StatusPill status={status} />
-            <button className="btn primary" onClick={onBrief}>Shift brief</button>
-          </div>
-        </header>
 
         {p && (
           <div className="pcontext">
@@ -100,8 +79,18 @@ function Profile({ chart, auth, onBrief, onTeam }) {
               </div>
             </div>
             <div className="grp">
+              <span className={`vital${p.handoff.codeStatus ? '' : ' warn'}`}>
+                {p.handoff.codeStatus ? <>Code <b>{p.handoff.codeStatus}</b></> : 'Code status missing'}
+              </span>
+              <span className={`vital${p.handoff.allergies ? '' : ' warn'}`}>
+                {p.handoff.allergies ? <>Allergies <b>{p.handoff.allergies}</b></> : 'Allergies not documented'}
+              </span>
               <span className={`dch ${p.dischStatus}`}>
                 Discharge in {p.dischargeInH}h: {DS_LABEL[p.dischStatus]}
+              </span>
+              <span className="vital hp" title={`${handoffProgress(p).done} of ${handoffProgress(p).total} handoff items in place`}>
+                Handoff <b>{handoffProgress(p).pct}%</b>
+                <span className="track"><span style={{ width: `${handoffProgress(p).pct}%` }} /></span>
               </span>
             </div>
           </div>
@@ -131,7 +120,7 @@ function Shell() {
   if (chart.status === 'loading') {
     return (
       <div className="app">
-        <Sidebar onBrief={() => {}} onReset={() => {}} />
+        <TopNav />
         <div className="main">
           <div className="content">
             <p className="intro" role="status" aria-live="polite">

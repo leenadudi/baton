@@ -206,6 +206,11 @@ button,.chip,.pt,.btn{touch-action:manipulation;}
 /* Auth gate + search + team activity */
 .auth{max-width:520px;margin:0 auto;padding-top:8vh;}
 .auth-card{margin-top:20px;}
+.auth-brand{flex-direction:column;align-items:center;gap:12px;text-align:center;}
+.auth-brand .mark{width:100%;height:auto;border-radius:20px;border:1px solid var(--line);}
+.auth-card .row-act{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.auth-card .row-act .btn{width:100%;justify-content:center;}
+.auth .foot{text-align:center;}
 .auth-card h2{font-family:var(--head);margin:0 0 6px;font-size:20px;}
 .auth-card .form{display:flex;flex-direction:column;gap:10px;margin:14px 0 4px;}
 .auth-err{color:#b3261e;font-size:13px;}
