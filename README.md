@@ -1,32 +1,72 @@
 # Baton
 
-Baton drafts the nursing/resident shift handoff from the chart and flags what's missing, contradicted, or stuck — so a nurse or resident isn't re-reading a full chart to catch what the last shift already knew.
+**HackMIT 2026 · Healthcare Track**
 
-Three flag types:
+Epic and Oracle Health already ship shift-handoff forms. Those forms are empty — clinicians retype the same information into them every shift. Baton fills the form in and tells you what's still missing.
 
-- **Conflicting instructions** — different care team members left contradictory orders/notes on the same topic (e.g. diet, anticoagulation, weight-bearing). Baton surfaces both source snippets and authors; it does not decide who's right.
-- **Incomplete handoffs** — required fields missing (code status, allergies, follow-up owner, medication reconciliation).
-- **Stuck administrative blockers** — authorizations, referrals, or equipment requests that haven't moved.
+**Live demo:** `<!-- paste the Vercel URL here -->` · **API:** [baton-mf85.onrender.com](https://baton-mf85.onrender.com) (Render free tier — first request after idle can take ~30s to wake up)
 
-Baton reads the chart; it does not diagnose or recommend treatment.
+## What it does
 
-## How it reads the chart
+At shift change, a nurse or resident re-reads the whole chart to reconstruct what the last shift already knew. What actually gets lost isn't a diagnosis — it's coordination: contradictory orders from different roles, handoff fields nobody filled in, and administrative work that sat still while the clock ran. Baton reads a patient's real FHIR chart and surfaces exactly that, in one screen per unit:
 
-Standard FHIR resources — no custom data model:
+- **Conflicting instructions** — different care team members left contradictory orders on the same topic (anticoagulation, weight-bearing, discharge destination, diet, fluids, isolation). Baton shows both source snippets and their authors side by side; it never picks a winner.
+- **Incomplete handoffs** — required fields missing (code status, allergies, follow-up owner, medication reconciliation) and pending results nobody owns.
+- **Stuck administrative blockers** — authorizations, referrals, or equipment requests that haven't moved, aged and severity-scored.
+- **Completed** — a live history of every resolved action on a patient (cleared blocker, filled field, reconciled conflict), so nothing that's actually done still reads as open.
+- **Patient info** — DOB, sex, active medications, active problems, latest vitals and labs, social history, recent procedures, past visits, and the care team roster, pulled straight from the chart so nobody needs a second system open.
+
+Baton reads the chart; it does not diagnose or recommend treatment, and by default it never writes back to it. It generates a shift-handoff brief a clinician reviews and copies — that's the whole write path unless `FHIR_WRITE` is explicitly turned on (see below).
+
+## Model reads, rules decide
+
+This is the architectural rule the whole system is built around, and it's what makes every flag on screen auditable.
+
+Free-text clinical notes go through an OpenAI (`gpt-4o-mini`) extraction step that returns structured `{role, topic, value}` tags — nothing more. A separate, deterministic Python rule engine, ported line-for-line from the original working prototype, is the *only* thing that decides what counts as a conflict, an incomplete field, or an aged blocker. The model never classifies an issue type and never picks a winning instruction. That separation means every flag traces back to one specific note or FHIR resource, never to a model's own judgment call.
+
+Scored against the six demo patients' hand-tagged notes: **16/16 exact match, precision/recall 1.00** (`scripts/score_extraction.py`). A second, harder evaluation set (`eval/synthetic_edge_cases.json`, `scripts/score_hard_cases.py`) exists specifically because that number alone doesn't prove generalization — those notes and their tags were written together. The harder set includes deliberate traps (past-tense narration, patient/family wishes, decoy keywords) and is scored separately, never blended into one headline number.
+
+## FHIR-native — no custom data model
 
 | Data | FHIR resource |
 |---|---|
-| Notes (free text) | `DocumentReference`, `DiagnosticReport` |
-| Meds | `MedicationRequest` |
+| Notes (free text) | `DocumentReference` |
+| Active medications | `MedicationRequest` |
+| Active problems | `Condition` |
 | Allergies | `AllergyIntolerance` |
-| Code status / goals | `CarePlan`, `Goal`, `Consent` |
-| Care team membership | `CareTeam`, `PractitionerRole` |
+| Code status | `Consent` |
+| Vitals, labs, social history | `Observation` |
+| Recent procedures | `Procedure` |
+| Past visits | `Encounter` |
+| Care team roster | `CareTeam` |
 | Consults / referrals | `ServiceRequest` |
 | Follow-up owner, admin blockers | `Task` |
 
-Free-text notes go through an extraction step (OpenAI API) that returns the same `{role, topic, value}` tags a rule engine already uses to detect conflicts — the model reads, the rules decide, so every flag stays auditable back to a source note. Scored against the six prototype patients' hand-written tags: 16/16 notes exact match, precision/recall 1.00 (`scripts/score_extraction.py`).
+Chart data is read from a public HAPI FHIR test server loaded with real Synthea-generated patients — not a mock dataset. Six demo personas are mapped onto real generated patients and carry hand-authored fixture notes/blockers/handoff fields layered on top (Synthea's own generated note text is thin and templated); everything else on this page — labs, vitals, medications, problems, procedures, visit history — is that patient's actual generated chart, read live.
 
-Write-back is deliberately minimal: Baton generates the handoff brief, a clinician reviews and copies it. No write permissions back to the chart.
+## Architecture
+
+```text
+Public HAPI FHIR test server (Synthea data)
+        │  FHIR reads, and optional writes if FHIR_WRITE=1
+        ▼
+FastAPI backend — FHIR client · OpenAI extraction · rule engine · panel + brief APIs
+        │  JSON: patients, issues, patient info, brief text
+        ▼
+React + Vite frontend — falls back to a local rule engine over cached
+data if the API is cold or unreachable, then upgrades once it answers
+```
+
+Deployed on **Render** (FastAPI) and **Vercel** (React SPA). Render's free tier sleeps after idle, so the frontend falls back to a local rule engine over cached data after a 6-second timeout and upgrades to live data once the backend answers — a cold start never means a blank screen for judges. A scheduled workflow pings the API periodically to reduce how often it goes cold.
+
+## Team
+
+| | |
+|---|---|
+| Sophie Cheung | Frontend & design |
+| Leena Dudi | Backend, API, FHIR client, rule engine |
+| Amy Lin | FHIR test data, demo fixtures |
+| Nicole Zheng | OpenAI note extraction, evaluation |
 
 ## Project structure
 
@@ -34,12 +74,9 @@ Write-back is deliberately minimal: Baton generates the handoff brief, a clinici
 backend/                       FastAPI application — FHIR client, rule engine, extraction endpoint
 frontend/                      React + Vite application
 frontend/public/prototype.html Standalone working UI prototype (rule engine over hardcoded demo data) — reference while porting to React
+eval/                          Extraction evaluation sets (synthetic edge cases; MTSamples, hand-labeled)
+scripts/                       Data loading, fixture generation, and extraction scoring
 ```
-
-## Prerequisites
-
-- Node.js 20 or newer
-- Python 3.11 or newer
 
 ## Run locally
 
@@ -84,7 +121,7 @@ Then start the backend (defaults to public HAPI, or set `FHIR_BASE_URL` explicit
 
 Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append its own `baton-out-*` resources (published briefs, reconciliations, owner/fill records — never touching fixture or patient data). With it enabled, `POST /brief/publish` writes the brief as a `Composition`, panel mutations record output resources, and `POST /demo/reset` deletes them. API routes:
 
-- `GET /patients`, `GET /patients/{id}` — unit panel: patient + handoff fields, notes, and current issues in one response
+- `GET /patients`, `GET /patients/{id}` — unit panel: patient + handoff fields, notes, patient info, and current issues in one response
 - `POST /patients/{id}/notes` — demo-only: add an instruction note locally (not a FHIR write)
 - `PATCH /issues/{id}` — demo-only local state: owner, fill field, pending owner, clear/escalate blocker, adopt a conflict value
 - `POST /extract` — free-text note → `["topic","value"]` tags (OpenAI; needs `OPENAI_API_KEY`)
@@ -93,6 +130,15 @@ Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append it
 - `GET /fhir/status` — FHIR base URL and server `fhirVersion`
 - `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
 - `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
+
+### Extraction evaluation
+
+```sh
+cd backend
+set -a; source .env; set +a      # loads OPENAI_API_KEY from backend/.env
+python3 ../scripts/score_extraction.py    # prototype notes: 16/16 exact match
+python3 ../scripts/score_hard_cases.py    # harder synthetic + (once labeled) MTSamples cases, scored separately
+```
 
 ### Demo fixtures
 
@@ -115,6 +161,7 @@ python scripts/load_fixtures.py --base-url https://hapi.fhir.org/baseR4
 # or just regenerate the JSON under dataset/fixtures/ without a server:
 python scripts/load_fixtures.py --dump-only
 ```
+
 ### Deploy (Render)
 
 `render.yaml` defines a single `baton-api` web service (Python, `rootDir: backend`, `uvicorn app.main:app --port $PORT`). Set `OPENAI_API_KEY`, `FHIR_BASE_URL`, and `CORS_ORIGINS` in the Render dashboard; CORS always includes `http://localhost:5173`.
