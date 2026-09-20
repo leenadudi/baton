@@ -10,6 +10,7 @@ import BriefModal from './components/BriefModal.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import TeamModal from './components/TeamModal.jsx'
 import { DS_LABEL } from './data/chart.js'
+import { handoffProgress } from './lib/rules.js'
 
 const AuthCtx = createContext(null)
 
@@ -71,16 +72,20 @@ function Profile({ chart, auth, onBrief, onTeam }) {
                 <div className="bits">
                   <span>Room <b>{p.room}</b></span>
                   <span>{p.dx}</span>
-                  {p.fhirPatientId && (
-                    <span>FHIR <b className="mono" translate="no">{p.fhirPatientId}</b></span>
-                  )}
                 </div>
               </div>
             </div>
             <div className="grp">
+              <span className={`vital${p.handoff.codeStatus ? '' : ' warn'}`}>
+                {p.handoff.codeStatus ? <>Code <b>{p.handoff.codeStatus}</b></> : 'Code status missing'}
+              </span>
+              <span className={`vital${p.handoff.allergies ? '' : ' warn'}`}>
+                {p.handoff.allergies ? <>Allergies <b>{p.handoff.allergies}</b></> : 'Allergies not documented'}
+              </span>
               <span className={`dch ${p.dischStatus}`}>
                 Discharge in {p.dischargeInH}h: {DS_LABEL[p.dischStatus]}
               </span>
+              <span className="vital" title="Handoff completeness">Handoff <b>{handoffProgress(p).pct}%</b></span>
             </div>
           </div>
         )}

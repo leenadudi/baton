@@ -1,11 +1,24 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Icon from './Icon.jsx'
 
 // One bar, no sidebar: brand, optional patient search, and the actions that
 // used to be split between the rail and the page header.
 export default function TopNav({ query, onQuery, back, status, onTeam, onBrief, auth }) {
+  const ref = useRef(null)
+  // The bar wraps at narrow widths, so sticky elements below it read its real
+  // height from --topnav-h rather than a fixed offset.
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const set = () => document.documentElement.style.setProperty('--topnav-h', `${el.offsetHeight}px`)
+    set()
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   return (
-    <header className="topnav">
+    <header className="topnav" ref={ref}>
       <div className="tn-left">
         <Link className="brand-lk" to="/patients">
           <img className="mark" src="/logo.png" alt="" />

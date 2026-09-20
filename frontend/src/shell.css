@@ -47,7 +47,8 @@ body{background:var(--page);}
 
 /* ---- page ---- */
 /* Sticky bits inside the page sit below the sticky nav, not under it. */
-.pbar,.list{top:var(--topnav-h);}
+.list{top:calc(var(--topnav-h) + 12px);}
+.pbar{position:static;}
 .main{min-width:0;display:flex;flex-direction:column;}
 .content{padding:22px 26px 60px;display:flex;flex-direction:column;gap:18px;}
 .content .foot .lnk{margin-left:8px;border:0;background:none;padding:0;font-size:inherit;cursor:pointer;color:var(--ink-2);text-decoration:underline;}
@@ -99,15 +100,18 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .riskbar span{display:block;height:100%;background:var(--conflict);border-radius:99px;}
 
 /* ---- patient profile ---- */
-.pcontext{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;
-  padding:14px 26px;background:var(--surface);border-bottom:1px solid var(--line);}
+.pcontext{display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;justify-content:space-between;
+  padding:10px 26px;background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:var(--topnav-h);z-index:6;}
+.pcontext .grp{gap:6px;}
+.pcontext .vital{margin:0;}
 .pcontext .who{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   /* index.css styles a bare .who as a clickable author link; this one is
      just the patient identity block, so drop the affordances. */
   text-decoration:none;cursor:auto;}
-.pcontext .ini{width:40px;height:40px;font-size:14px;background:var(--handoff-bg);
+.pcontext .ini{width:36px;height:36px;font-size:13px;background:var(--handoff-bg);
   color:var(--handoff);border-color:var(--handoff);}
-.pcontext .nm{font-family:var(--head);font-weight:700;font-size:20px;}
+.pcontext .nm{font-family:var(--head);font-weight:700;font-size:18px;line-height:1.15;}
 .pcontext .bits{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--ink-2);}
 .pcontext .bits b{color:var(--ink);font-weight:600;}
 .pcontext .bits .mono{font-family:var(--mono);font-size:12px;}
