@@ -98,6 +98,41 @@ Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append it
 - `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
 - `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
 
+## Deploying the frontend
+
+The Vercel project carries **no environment variables** — everything needed is in
+the repo, so a clean clone deploys to an identical site:
+
+```sh
+git clone -b frontend-auth https://github.com/leenadudi/baton
+cd baton/frontend && npm install
+npx vercel@latest link      # pick the existing project, or create your own
+npx vercel@latest --prod
+```
+
+Two committed files do the work, and both matter:
+
+- `frontend/.env.production` sets `VITE_API_URL=/proxy`. Do **not** re-add
+  `VITE_API_URL` in Vercel project settings — Vite's `loadEnv` lets `process.env`
+  override `.env` files, so a project-level variable silently wins over this and
+  the build talks to the backend cross-origin.
+- `frontend/vercel.json` rewrites `/proxy/*` to the Render backend at the edge.
+  That keeps every API call same-origin, so the backend CORS allowlist (which
+  only contains `localhost:5173`) never applies to the deployed site.
+
+Deploying from a directory other than `frontend/` will fail: `package.json` is
+not at the repo root. If the project is ever connected to Git, set **Root
+Directory** to `frontend` and the **Production Branch** to the branch you
+actually ship, not `main`.
+
+Before deploying, run the render check — `vite build` passing does not prove the
+app runs, because a dropped arrow in a function still parses:
+
+```sh
+cd frontend
+npx vite build --ssr .smoke/render-check.jsx --outDir .smoke/out && node .smoke/out/render-check.js
+```
+
 ### Demo fixtures
 
 The six PRD personas (Margaret A., Robert C., …) are loaded onto the mapped
