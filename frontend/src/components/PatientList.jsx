@@ -65,7 +65,7 @@ export default function PatientList({ patients, query }) {
   const q = query.trim().toLowerCase()
   const rows = patients
     .filter((p) => tab === 'all' || p.dischStatus === tab)
-    .filter((p) => !q || `${p.room} ${p.name}`.toLowerCase().includes(q))
+    .filter((p) => !q || p.name.toLowerCase().includes(q))
     .sort((a, b) => {
       if (sort === 'discharge') return a.dischargeInH - b.dischargeInH
       return b.risk - a.risk

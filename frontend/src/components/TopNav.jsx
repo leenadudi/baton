@@ -36,7 +36,7 @@ export default function TopNav({ query, onQuery, back, onTeam, onBrief, auth }) 
           <Icon name="search" />
           <input
             type="search" value={query} onChange={(e) => onQuery(e.target.value)}
-            placeholder="Search name or room" aria-label="Search patients"
+            placeholder="Search patient" aria-label="Search patients"
             spellCheck={false} autoComplete="off"
           />
         </div>
