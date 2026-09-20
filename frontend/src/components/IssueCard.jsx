@@ -160,7 +160,7 @@ function Suggestion({ issue, actions }) {
   }
   return (
     <div className="sug-wrap">
-      <button className="btn small" onClick={load} disabled={busy}>
+      <button className="btn small suggest" onClick={load} disabled={busy}>
         {busy ? 'Thinking…' : 'Suggest next step'}
       </button>
       {sug && (

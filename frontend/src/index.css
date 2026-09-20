@@ -225,4 +225,7 @@ button,.chip,.pt,.btn{touch-action:manipulation;}
 .prov-src li{padding:2px 0;}
 .prov-src b{color:var(--ink);}
 .sug-wrap{margin-top:10px;}
+.btn.suggest{background:var(--blocker-bg);border-color:var(--blocker);color:var(--blocker);font-weight:600;}
+.btn.suggest:hover{background:var(--blocker);color:var(--surface);border-color:var(--blocker);}
+.btn.suggest:disabled{opacity:.6;}
 .sug{font-size:13.5px;margin:8px 0 0;max-width:80ch;}
