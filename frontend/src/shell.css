@@ -8,6 +8,7 @@
   --nav:#141f3d; --nav-2:#1e2c52; --nav-ink:#e6ecf9; --nav-ink-2:#8d9cc2;
   --page:#eef1f7; --nav-on:#ffffff;
   --card-shadow:0 1px 2px rgb(16 26 48 / 6%), 0 8px 24px rgb(16 26 48 / 5%);
+  --topnav-h:66px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ --page:#0b141c; --nav-on:#e6ecf9; --card-shadow:0 1px 2px rgb(0 0 0 / 30%); }
@@ -18,7 +19,7 @@ body{background:var(--page);}
 
 /* ---- top nav (replaces the sidebar) ---- */
 .app{display:flex;flex-direction:column;min-height:100vh;}
-.topnav{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:12px 26px;
+.topnav{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:12px 26px;min-height:var(--topnav-h);
   background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:7;}
 .tn-left{display:flex;align-items:center;gap:18px;flex:none;}
 .brand-lk{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;}
@@ -45,6 +46,8 @@ body{background:var(--page);}
 .grp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
 
 /* ---- page ---- */
+/* Sticky bits inside the page sit below the sticky nav, not under it. */
+.pbar,.list{top:var(--topnav-h);}
 .main{min-width:0;display:flex;flex-direction:column;}
 .content{padding:22px 26px 60px;display:flex;flex-direction:column;gap:18px;}
 .content .foot .lnk{margin-left:8px;border:0;background:none;padding:0;font-size:inherit;cursor:pointer;color:var(--ink-2);text-decoration:underline;}
