@@ -35,42 +35,36 @@ function Panel() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <svg className="mark" viewBox="0 0 44 44" aria-hidden="true">
-            <rect width="44" height="44" rx="11" fill="var(--ink)" />
-            <circle cx="12" cy="22" r="5" fill="var(--bg)" />
-            <rect x="17" y="19.5" width="12" height="5" rx="2.5" fill="var(--bg)" />
-            <circle cx="32" cy="22" r="5" fill="none" stroke="var(--bg)" strokeWidth="2.5" strokeDasharray="3.2 2.6" />
-          </svg>
+          <img className="mark" src="/mark.png" alt="" aria-hidden="true" />
           <div>
             <h1>Baton</h1>
-            <div className="tag">Find what falls between care team members before the patient does</div>
+            <div className="tag"><b>4 West</b> · medical-surgical</div>
           </div>
         </div>
         <div className="actions">
-          <span className="pill"><b>4 West</b> medical-surgical unit</span>
-          <span className="pill">Synthetic data, no PHI</span>
-          <span className="pill" title={status === 'api' ? 'Issues computed by the backend rule engine' : 'Backend unreachable — running the local demo engine'}>
-            {status === 'api' ? 'Live chart' : 'Offline demo data'}
+          <span className={`pill status ${status === 'api' ? 'live' : ''}`} title={status === 'api' ? 'Issues computed by the backend rule engine from the FHIR chart' : 'Backend unreachable — running the local demo engine'}>
+            <i /> {status === 'api' ? 'Live chart' : 'Offline demo'}
           </span>
           {doctor ? (
-            <span className="pill" title="Sharing the unit view with your team">Signed in as <b>{doctor.name}</b></span>
+            <span className="pill" title="Sharing the unit view with your team"><b>{doctor.name}</b></span>
           ) : (
-            <span className="pill" title="Your changes are private to this browser">Guest sandbox</span>
+            <span className="pill" title="Your changes are private to this browser">Guest</span>
           )}
           <button className="btn" onClick={() => { setTeamDoctor(null); setTeam(true) }}>Team activity</button>
           <button className="btn primary" onClick={openBrief}>Shift brief</button>
-          <button className="btn ghost" onClick={actions.reset}>Reset demo</button>
+          <button className="btn ghost small" onClick={actions.reset}>Reset</button>
           {doctor
-            ? <button className="btn ghost" onClick={logout}>Sign out</button>
-            : <button className="btn ghost" onClick={onSignIn}>Sign in</button>}
+            ? <button className="btn ghost small" onClick={logout}>Sign out</button>
+            : <button className="btn ghost small" onClick={onSignIn}>Sign in</button>}
         </div>
       </header>
 
-      <p className="intro">
-        Baton reads the trail of orders, notes, and tasks around each patient and flags three kinds
-        of coordination failure: teams giving conflicting instructions, handoffs with missing pieces,
-        and administrative tasks stuck with nobody moving them. It does not diagnose or recommend treatment.
-      </p>
+      <SummaryTiles patients={patients} />
+
+      <div className="grid">
+        <PatientList patients={patients} />
+        <Outlet context={{ patients, actions, openDoctor }} />
+      </div>
 
       <details className="how">
         <summary>How Baton decides what to flag</summary>
@@ -83,15 +77,8 @@ function Panel() {
         </ul>
       </details>
 
-      <SummaryTiles patients={patients} />
-
-      <div className="grid">
-        <PatientList patients={patients} />
-        <Outlet context={{ patients, actions, openDoctor }} />
-      </div>
-
       <p className="foot">
-        All patients, notes, and organizations in this demo are invented. Baton is a coordination aid
+        Synthetic data, no PHI. All patients, notes, and organizations in this demo are invented. Baton is a coordination aid
         and does not replace clinical judgment or hospital policy.
       </p>
 
@@ -113,8 +100,8 @@ function SelectPrompt() {
   return (
     <main>
       <div className="empty">
-        <b>Select a patient</b>
-        The unit summary above counts every open issue on 4 West. Choose a patient to see what needs attention.
+        <b>Pick a patient</b>
+        Patients are ordered by risk. Open one to see what conflicts, what's missing, and what's stuck.
       </div>
     </main>
   )

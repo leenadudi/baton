@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { OWNERS, TYPE_LABEL, SEV_LABEL } from '../data/chart.js'
 import { ago } from '../lib/rules.js'
-import { SuggestBox, useSuggestion } from './Suggest.jsx'
+import { SuggestBox, SuggestButton, useSuggestion } from './Suggest.jsx'
 
 function OwnerSelect({ issue, actions }) {
   return (
@@ -14,6 +14,24 @@ function OwnerSelect({ issue, actions }) {
       <option value="">Unassigned</option>
       {OWNERS.map((o) => <option key={o}>{o}</option>)}
     </select>
+  )
+}
+
+function OwnerSuggestion({ sug, onAssign }) {
+  if (!sug.data) return null
+  return (
+    <SuggestBox onDismiss={sug.clear}>
+      {sug.data.owner ? (
+        <div className="srow">
+          <p><b>{sug.data.owner}</b> <span className="muted">— {sug.data.reason}</span></p>
+          <button className="btn small primary" onClick={() => { onAssign(sug.data.owner); sug.clear() }}>
+            Assign {sug.data.owner}
+          </button>
+        </div>
+      ) : (
+        <p className="muted">No clear owner on the care team.</p>
+      )}
+    </SuggestBox>
   )
 }
 
@@ -39,7 +57,7 @@ function ConflictBody({ issue, actions }) {
 
   return (
     <>
-      <p className="why">{issue.why} Pick the instruction that should stand.</p>
+      <p className="why">{issue.why} Pick the instruction that should stand — Baton never picks for you.</p>
       <div className="opts">
         {Object.keys(issue.vals).map((v) => (
           <div className="opt" key={v}>
@@ -52,7 +70,7 @@ function ConflictBody({ issue, actions }) {
             </div>
             {issue.vals[v].map((n, k) => (
               <div key={k}>
-                <div className="who"><b>{n.role}</b>, {n.author}, {ago(n)}</div>
+                <div className="who"><b>{n.role}</b> · {n.author} · {ago(n)}</div>
                 <blockquote>{n.text}</blockquote>
               </div>
             ))}
@@ -60,23 +78,19 @@ function ConflictBody({ issue, actions }) {
         ))}
       </div>
       <div className="row-act">
-        <button
-          className="btn small"
-          disabled={sug.loading}
-          onClick={draft}
-        >{sug.loading ? 'Thinking…' : 'Draft clarifying message'}</button>
+        <SuggestButton loading={sug.loading} onClick={draft}>Draft a clarifying message to both authors</SuggestButton>
         {sug.error && <span className="tag">{sug.error}</span>}
       </div>
       {sug.data?.message && (
-        <SuggestBox onDismiss={sug.clear}>
+        <SuggestBox onDismiss={sug.clear} label="Draft message">
           <textarea
             aria-label="Clarifying message draft"
             value={msg || sug.data.message}
             onChange={(e) => setMsg(e.target.value)}
           />
-          <div className="row-act">
+          <div className="row-act end">
             <span className="tag" aria-live="polite">{copied}</span>
-            <button className="btn small" onClick={copy}>Copy</button>
+            <button className="btn small primary" onClick={copy}>Copy message</button>
           </div>
         </SuggestBox>
       )}
@@ -88,11 +102,12 @@ function HandoffBody({ issue, actions }) {
   const [value, setValue] = useState('')
   const fsug = useSuggestion(actions.suggestField)
   const osug = useSuggestion(actions.suggestOwner)
+  const isField = issue.fix.kind === 'field'
 
   const submit = () => {
     const v = value.trim()
     if (!v) return
-    if (issue.fix.kind === 'field') actions.fillField(issue.pid, issue.fix.key, v)
+    if (isField) actions.fillField(issue.pid, issue.fix.key, v)
     else actions.assignPending(issue.pid, issue.fix.name, v)
     setValue('')
   }
@@ -101,7 +116,7 @@ function HandoffBody({ issue, actions }) {
     <>
       <p className="why">{issue.why}</p>
       <div className="row-act">
-        {issue.fix.kind === 'field' ? (
+        {isField ? (
           <input
             type="text" aria-label="Value" placeholder={issue.fix.ph}
             value={value} onChange={(e) => setValue(e.target.value)}
@@ -114,66 +129,39 @@ function HandoffBody({ issue, actions }) {
           </select>
         )}
         <button className="btn small primary" onClick={submit}>
-          {issue.fix.kind === 'field' ? 'Save to handoff' : 'Assign follow-up'}
+          {isField ? 'Save to handoff' : 'Assign follow-up'}
         </button>
-        {issue.fix.kind === 'field' ? (
-          <button
-            className="btn small"
-            disabled={fsug.loading}
-            onClick={() => fsug.run(issue.id)}
-          >{fsug.loading ? 'Thinking…' : 'Suggest from notes'}</button>
+        {isField ? (
+          <SuggestButton loading={fsug.loading} onClick={() => fsug.run(issue.id)}>Find it in the notes</SuggestButton>
         ) : (
-          <button
-            className="btn small"
-            disabled={osug.loading}
-            onClick={() => osug.run(issue.id)}
-          >{osug.loading ? 'Thinking…' : 'Suggest owner'}</button>
+          <SuggestButton loading={osug.loading} onClick={() => osug.run(issue.id)}>Suggest an owner</SuggestButton>
         )}
       </div>
       {fsug.error && <span className="tag">{fsug.error}</span>}
       {osug.error && <span className="tag">{osug.error}</span>}
       {fsug.data && (
-        <SuggestBox onDismiss={fsug.clear}>
+        <SuggestBox onDismiss={fsug.clear} label="Found in the notes">
           {fsug.data.value ? (
-            <>
-              <p>
-                <b>{fsug.data.value}</b>
-                {fsug.data.quote && <> — “{fsug.data.quote}”</>}
-              </p>
-              {fsug.data.source && (
-                <p className="who">
-                  {fsug.data.source.role}, {fsug.data.source.author},{' '}
-                  {fsug.data.source.h}h ago
-                </p>
-              )}
-              <button
-                className="btn small"
-                onClick={() => setValue(fsug.data.value)}
-              >Use suggestion</button>
-            </>
+            <div className="srow">
+              <div>
+                <p><b>{fsug.data.value}</b></p>
+                {fsug.data.quote && <blockquote>“{fsug.data.quote}”</blockquote>}
+                {fsug.data.source && (
+                  <p className="who">
+                    {fsug.data.source.role} · {fsug.data.source.author} · {fsug.data.source.h}h ago
+                  </p>
+                )}
+              </div>
+              <button className="btn small primary" onClick={() => { setValue(fsug.data.value); fsug.clear() }}>
+                Use this value
+              </button>
+            </div>
           ) : (
-            <p>Nothing in the notes states this.</p>
+            <p className="muted">Nothing in the notes states this — it needs a human.</p>
           )}
         </SuggestBox>
       )}
-      {osug.data && (
-        <SuggestBox onDismiss={osug.clear}>
-          {osug.data.owner ? (
-            <>
-              <p><b>{osug.data.owner}</b> — {osug.data.reason}</p>
-              <button
-                className="btn small"
-                onClick={() => {
-                  actions.assignPending(issue.pid, issue.fix.name, osug.data.owner)
-                  osug.clear()
-                }}
-              >Assign {osug.data.owner}</button>
-            </>
-          ) : (
-            <p>No clear owner from the care team.</p>
-          )}
-        </SuggestBox>
-      )}
+      <OwnerSuggestion sug={osug} onAssign={(o) => actions.assignPending(issue.pid, issue.fix.name, o)} />
     </>
   )
 }
@@ -194,31 +182,12 @@ function BlockerBody({ issue, actions }) {
             onClick={() => actions.escalateBlocker(issue.pid, issue.bid, issue.title)}
           >Escalate</button>
         )}
-        <button
-          className="btn small"
-          disabled={osug.loading}
-          onClick={() => osug.run(issue.id)}
-        >{osug.loading ? 'Thinking…' : 'Suggest owner'}</button>
+        {!issue.owner && (
+          <SuggestButton loading={osug.loading} onClick={() => osug.run(issue.id)}>Suggest an owner</SuggestButton>
+        )}
       </div>
       {osug.error && <span className="tag">{osug.error}</span>}
-      {osug.data && (
-        <SuggestBox onDismiss={osug.clear}>
-          {osug.data.owner ? (
-            <>
-              <p><b>{osug.data.owner}</b> — {osug.data.reason}</p>
-              <button
-                className="btn small"
-                onClick={() => {
-                  actions.setOwner(issue.pid, issue.id, osug.data.owner, issue.title)
-                  osug.clear()
-                }}
-              >Assign {osug.data.owner}</button>
-            </>
-          ) : (
-            <p>No clear owner from the care team.</p>
-          )}
-        </SuggestBox>
-      )}
+      <OwnerSuggestion sug={osug} onAssign={(o) => actions.setOwner(issue.pid, issue.id, o, issue.title)} />
     </>
   )
 }

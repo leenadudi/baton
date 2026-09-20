@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { SuggestBox, SuggestButton } from './Suggest.jsx'
 
 export default function BriefModal({ text, onClose, canPublish, onPublish, onHuddle }) {
   const [copied, setCopied] = useState('')
@@ -67,16 +68,13 @@ export default function BriefModal({ text, onClose, canPublish, onPublish, onHud
         <div className="tag">Open issues, most urgent first. Copy it into your handoff tool or read it aloud at huddle.</div>
         <textarea ref={ref} readOnly value={text} />
         {huddle?.script && (
-          <div className="suggest">
-            <div className="suggest-head">
-              <span className="suggest-tag">AI suggestion — review before using</span>
-            </div>
+          <SuggestBox label="30-second huddle version" onDismiss={() => setHuddle(null)}>
             <textarea readOnly aria-label="Huddle script" value={huddle.script} />
-            <div className="row-act">
+            <div className="row-act end">
               <span className="tag" aria-live="polite">{huddleCopied}</span>
-              <button className="btn small" onClick={copyHuddle}>Copy script</button>
+              <button className="btn small primary" onClick={copyHuddle}>Copy script</button>
             </div>
-          </div>
+          </SuggestBox>
         )}
         <div className="row-act">
           <span className="tag" aria-live="polite">
@@ -91,9 +89,7 @@ export default function BriefModal({ text, onClose, canPublish, onPublish, onHud
           </span>
           <button className="btn" onClick={copy}>Copy brief</button>
           {onHuddle && (
-            <button className="btn" onClick={tighten} disabled={huddle === 'loading'}>
-              {huddle === 'loading' ? 'Thinking…' : 'Tighten for huddle'}
-            </button>
+            <SuggestButton loading={huddle === 'loading'} onClick={tighten}>Tighten for huddle</SuggestButton>
           )}
           {huddle?.error && <span className="tag"> {huddle.error}</span>}
           {canPublish && (
