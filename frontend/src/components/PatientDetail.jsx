@@ -45,7 +45,7 @@ export default function PatientDetail({ patients, actions }) {
       <main>
         <div className="empty">
           <b>Patient not found</b>
-          Room {patientId} is not on 4 West. Pick a patient from the list.
+          Room {patientId} is not at this hospital. Pick a patient from the list.
         </div>
       </main>
     )

@@ -27,7 +27,6 @@ body{background:var(--page);}
   border:1px solid var(--line);background:#fff;}
 .brand-lk>span{display:flex;flex-direction:column;line-height:1.15;}
 .brand-lk .n{font-family:var(--head);font-weight:700;font-size:18px;}
-.brand-lk .u{font-size:12px;color:var(--ink-2);}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 .tn-search{display:flex;align-items:center;gap:8px;flex:1 1 260px;max-width:460px;
   background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;}
@@ -96,7 +95,7 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .ini{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;
   font-size:13px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);
   color:var(--ink-2);font-family:var(--mono);}
-.riskbar{width:70px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;}
+.riskbar{display:inline-block;width:70px;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden;vertical-align:middle;}
 .riskbar span{display:block;height:100%;background:var(--conflict);border-radius:99px;}
 
 /* ---- patient profile ---- */
@@ -132,3 +131,20 @@ table.pt-table{width:100%;border-collapse:collapse;font-size:14px;min-width:760p
 .sortby select{border:1px solid var(--line);background:var(--surface);border-radius:9px;
   padding:6px 9px;color:var(--ink);font-size:13.5px;}
 
+
+/* Next action: the highest-severity open issue, so the table leads with the
+   work rather than with identifiers. Truncated because titles vary in length
+   and a wrapping first column makes the rows impossible to scan. */
+.pt-table th:first-child,.pt-table td.nact{min-width:260px;max-width:340px;}
+.nact{display:flex;align-items:baseline;gap:8px;}
+.nverb{flex:none;font-size:11.5px;font-weight:600;letter-spacing:.02em;padding:2px 8px;
+  border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);}
+.nverb.conflict{background:var(--conflict-bg);border-color:var(--conflict);color:var(--conflict);}
+.nverb.handoff{background:var(--handoff-bg);border-color:var(--handoff);color:var(--handoff);}
+.nverb.blocker{background:var(--blocker-bg);border-color:var(--blocker);color:var(--blocker);}
+.ntitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nunowned{flex:none;font-size:11.5px;color:var(--conflict);font-weight:600;}
+
+/* The bar alone gives a rough sense; the number is what people compare. */
+.riskcell{display:flex;align-items:center;gap:9px;}
+.riskcell b{font-variant-numeric:tabular-nums;font-weight:600;min-width:16px;}

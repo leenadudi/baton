@@ -92,7 +92,7 @@ def brief_text(s: dict) -> str:
             all_items.append({"p": p, "i": i})
     all_items.sort(key=lambda x: (-rules.W[x["i"]["sev"]], x["p"]["dischargeInH"]))
     un = sum(1 for x in all_items if not S["owners"].get(x["i"]["id"]))
-    lines = ["SHIFT HANDOFF BRIEF for 4 West (synthetic data)",
+    lines = ["SHIFT HANDOFF BRIEF (synthetic data)",
              f"{len(all_items)} open coordination issues, {un} with no owner.", ""]
     if not all_items:
         lines.append("Nothing open. Instructions agree, handoffs are complete, no blockers.")
@@ -102,7 +102,7 @@ def brief_text(s: dict) -> str:
                      f"{TYPE_LABEL[i['type']]}. {i['title']}.")
         lines.append(f"   {i['sub']}")
         lines.append(f"   Owner: {S['owners'].get(i['id']) or 'UNASSIGNED'}; "
-                     f"discharge target in {p['dischargeInH']}h.")
+                     f"discharge target in {rules.eta_label(p['dischargeInH'])}.")
         lines.append("")
     if len(all_items) > 14:
         lines.append(f"+ {len(all_items) - 14} lower-priority items in Baton.")

@@ -54,7 +54,7 @@ export default function TeamModal({ patients, initial = null, onClose }) {
     >
       <div className="modal">
         <h2 id="teamt">Team activity</h2>
-        <div className="tag">Who has done what on 4 West, and when.</div>
+        <div className="tag">Who has done what, and when.</div>
         <input
           ref={ref} className="search" value={query}
           onChange={(e) => setQuery(e.target.value)}

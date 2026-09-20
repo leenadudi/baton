@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DS_LABEL } from '../data/chart.js'
+import { etaLabel } from '../lib/rules.js'
 
 const TABS = [
   ['all', 'All'],
@@ -14,7 +15,12 @@ const SORTS = [
   ['room', 'Room number'],
 ]
 
-const initials = (name) =>
+// What to call the work, by issue type. Issues arrive sorted highest-severity
+// first from both the API (backend rules.py:139) and the offline engine, so
+// issues[0] is the next thing to move on this patient.
+const NEXT_VERB = { conflict: 'Reconcile', handoff: 'Complete', blocker: 'Unblock' }
+
+const initials = (name) =
   name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
 // Table layout borrowed from the reference dashboard: aligned columns scan faster
@@ -41,7 +47,7 @@ export default function PatientList({ patients, query }) {
     <section className="tablecard">
       <div className="tc-head">
         <div>
-          <h2>Patients on 4 West</h2>
+          <h2>Patients at hospital</h2>
           <div className="tag">Highest risk first. Open a patient to see what needs attention.</div>
         </div>
         <div className="tc-head-ctl">
@@ -66,6 +72,7 @@ export default function PatientList({ patients, query }) {
         <table className="pt-table">
           <thead>
             <tr>
+              <th scope="col">Next action</th>
               <th scope="col">Room</th>
               <th scope="col">Patient</th>
               <th scope="col">Working diagnosis</th>
@@ -83,6 +90,19 @@ export default function PatientList({ patients, query }) {
               const b = p.issues.filter((i) => i.type === 'blocker').length
               return (
                 <tr key={p.id}>
+                  <td className="nact">
+                    {p.issues.length ? (
+                      <>
+                        <span className={`nverb ${p.issues[0].type}`}>
+                          {NEXT_VERB[p.issues[0].type]}
+                        </span>
+                        <span className="ntitle" title={p.issues[0].title}>
+                          {p.issues[0].title}
+                        </span>
+                        {!p.issues[0].owner && <span className="nunowned">Unassigned</span>}
+                      </>
+                    ) : <span className="meta">Nothing open</span>}
+                  </td>
                   <td><span className="rm">{p.room}</span></td>
                   <td>
                     <Link className="who" to={`/patients/${p.id}`}>
@@ -96,15 +116,18 @@ export default function PatientList({ patients, query }) {
                   <td className="dxc">{p.dx}</td>
                   <td>
                     <span className={`dch ${p.dischStatus}`}>
-                      {p.dischargeInH}h · {DS_LABEL[p.dischStatus]}
+                      {etaLabel(p.dischargeInH)} · {DS_LABEL[p.dischStatus]}
                     </span>
                   </td>
                   <td className="num"><i className={`cnt ${c ? 'c' : 'z'}`}>{c}</i></td>
                   <td className="num"><i className={`cnt ${h ? 'h' : 'z'}`}>{h}</i></td>
                   <td className="num"><i className={`cnt ${b ? 'b' : 'z'}`}>{b}</i></td>
                   <td>
-                    <span className="riskbar" role="img" aria-label={`Risk score ${p.risk}`}>
-                      <span style={{ width: `${Math.min(100, Math.round((p.risk / 14) * 100))}%` }} />
+                    <span className="riskcell">
+                      <b>{p.risk}</b>
+                      <span className="riskbar" role="img" aria-label={`Risk score ${p.risk}`}>
+                        <span style={{ width: `${Math.min(100, Math.round((p.risk / 14) * 100))}%` }} />
+                      </span>
                     </span>
                   </td>
                 </tr>

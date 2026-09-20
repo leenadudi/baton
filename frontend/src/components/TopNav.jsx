@@ -22,10 +22,7 @@ export default function TopNav({ query, onQuery, back, status, onTeam, onBrief, 
       <div className="tn-left">
         <Link className="brand-lk" to="/patients">
           <img className="mark" src="/logo.png" alt="" />
-          <span>
-            <span className="n">Baton</span>
-            <span className="u">4 West · med-surg</span>
-          </span>
+          <span className="n">Baton</span>
         </Link>
         {back && (
           <Link className="back" to="/patients">

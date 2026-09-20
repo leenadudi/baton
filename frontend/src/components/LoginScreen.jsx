@@ -36,7 +36,7 @@ export default function LoginScreen({ onLogin, onRegister, onGuest }) {
       </div>
 
       <section className="panel auth-card">
-        <h2>{mode === 'login' ? 'Sign in to 4 West' : 'Join the 4 West team'}</h2>
+        <h2>{mode === 'login' ? 'Sign in' : 'Create an account'}</h2>
         <p className="tag">
           Signed-in clinicians share one unit view — every action is attributed
           and visible to the team. Guests get a private sandbox instead.

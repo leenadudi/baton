@@ -10,7 +10,7 @@ import BriefModal from './components/BriefModal.jsx'
 import LoginScreen from './components/LoginScreen.jsx'
 import TeamModal from './components/TeamModal.jsx'
 import { DS_LABEL } from './data/chart.js'
-import { handoffProgress } from './lib/rules.js'
+import { etaLabel, handoffProgress } from './lib/rules.js'
 
 const AuthCtx = createContext(null)
 
@@ -86,7 +86,7 @@ function Profile({ chart, auth, onBrief, onTeam }) {
                 {p.handoff.allergies ? <>Allergies <b>{p.handoff.allergies}</b></> : 'Allergies not documented'}
               </span>
               <span className={`dch ${p.dischStatus}`}>
-                Discharge in {p.dischargeInH}h: {DS_LABEL[p.dischStatus]}
+                Discharge in {etaLabel(p.dischargeInH)}: {DS_LABEL[p.dischStatus]}
               </span>
               <span className="vital hp" title={`${handoffProgress(p).done} of ${handoffProgress(p).total} handoff items in place`}>
                 Handoff <b>{handoffProgress(p).pct}%</b>

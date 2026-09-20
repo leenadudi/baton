@@ -4,20 +4,17 @@
 export default function SummaryTiles({ patients }) {
   const by = { conflict: 0, handoff: 0, blocker: 0 }
   const sev = { high: 0, med: 0, low: 0 }
-  let unowned = 0, atRisk = 0, total = 0
+  let total = 0
 
   patients.forEach((p) => {
     p.issues.forEach((i) => {
       by[i.type] = (by[i.type] || 0) + 1
       sev[i.sev]++
-      if (!i.owner) unowned++
       total++
     })
-    if (p.dischargeInH <= 24 && p.dischStatus === 'risk') atRisk++
   })
 
   const pct = (n) => (total ? (n / total) * 100 : 0)
-  const soon = patients.filter((p) => p.dischargeInH <= 24).length
 
   return (
     <section className="stats" aria-label="Unit summary">
@@ -51,13 +48,6 @@ export default function SummaryTiles({ patients }) {
         <div className="note">{sev.high} high · {sev.med} medium · {sev.low} low</div>
       </div>
 
-      <div className="stat s-warn">
-        <div className="k">Nobody owns</div>
-        <div className="v">{unowned}</div>
-        <div className="note">
-          {atRisk} of {soon} discharge{soon === 1 ? '' : 's'} due within 24h {atRisk === 1 ? 'is' : 'are'} at risk
-        </div>
-      </div>
     </section>
   )
 }
