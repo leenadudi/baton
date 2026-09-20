@@ -4,6 +4,8 @@
     "fhirPatientId": "Patient/42157",
     "name": "Margaret A.",
     "age": 78,
+    "gender": "female",
+    "birthDate": "1948-03-14",
     "room": "412",
     "dx": "Hip fracture, ORIF post-op day 2",
     "dischargeInH": 30
@@ -12,6 +14,8 @@
     "fhirPatientId": "Patient/44086",
     "name": "Robert C.",
     "age": 64,
+    "gender": "male",
+    "birthDate": "1962-05-22",
     "room": "407",
     "dx": "Heart failure exacerbation, day 3",
     "dischargeInH": 20
@@ -20,6 +24,8 @@
     "fhirPatientId": "Patient/47767",
     "name": "Priya S.",
     "age": 41,
+    "gender": "female",
+    "birthDate": "1985-07-09",
     "room": "305",
     "dx": "Laparoscopic cholecystectomy, post-op day 1",
     "dischargeInH": 6
@@ -28,6 +34,8 @@
     "fhirPatientId": "Patient/48900",
     "name": "James O.",
     "age": 55,
+    "gender": "male",
+    "birthDate": "1971-01-30",
     "room": "418",
     "dx": "Diabetic ketoacidosis, resolved",
     "dischargeInH": 26
@@ -36,6 +44,8 @@
     "fhirPatientId": "Patient/44970",
     "name": "Elena V.",
     "age": 83,
+    "gender": "female",
+    "birthDate": "1943-06-18",
     "room": "421",
     "dx": "Pneumonia, improving on day 4",
     "dischargeInH": 44
@@ -44,6 +54,8 @@
     "fhirPatientId": "Patient/43825",
     "name": "David L.",
     "age": 29,
+    "gender": "male",
+    "birthDate": "1997-04-02",
     "room": "310",
     "dx": "Appendectomy, post-op day 1",
     "dischargeInH": 3

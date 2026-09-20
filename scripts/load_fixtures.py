@@ -364,12 +364,20 @@ def wipe_controlled(client: httpx.Client, base: str, patient_ref_str: str) -> in
 
 
 def update_patient(client: httpx.Client, base: str, persona: dict,
-                   fhir_patient_id: str) -> None:
-    """Set display name + familyContact on the mapped Patient resource."""
-    pid = fhir_patient_id.split("/", 1)[1]
+                   mapping: dict) -> None:
+    """Set display name, demographics + familyContact on the mapped Patient.
+
+    The loaded Synthea patients are random people; the persona's gender and
+    birthDate from demo_patients.json override theirs so the chart agrees with
+    the narrative age.
+    """
+    pid = mapping["fhirPatientId"].split("/", 1)[1]
     patient = request(client, "GET", f"{base}/Patient/{pid}", headers=FHIR_ACCEPT)
     if not patient:
         return
+    for key in ("gender", "birthDate"):
+        if mapping.get(key):
+            patient[key] = mapping[key]
     first, _, last = persona["name"].partition(" ")
     patient["name"] = [{"use": "official", "text": persona["name"],
                         "family": last.strip() or persona["name"],
@@ -395,6 +403,8 @@ def main() -> int:
                         help="Persona -> Patient mapping JSON")
     parser.add_argument("--dump-only", action="store_true",
                         help="Write dataset/fixtures/ without touching a server")
+    parser.add_argument("--patients-only", action="store_true",
+                        help="Only refresh the Patient resources (name, demographics, contact)")
     args = parser.parse_args()
 
     demo_map = {k: v for k, v in
@@ -416,6 +426,12 @@ def main() -> int:
     print(f"Loading fixtures to {base}")
     failed = 0
     with httpx.Client(timeout=60) as client:
+        if args.patients_only:
+            for pid in by_patient:
+                print(f"[{pid}] {personas[pid]['name']} -> {demo_map[pid]['fhirPatientId']}")
+                update_patient(client, base, personas[pid], demo_map[pid])
+            print("Done")
+            return 0
         for res in shared.values():
             if request(client, "PUT", f"{base}/{res['resourceType']}/{res['id']}",
                        json=res, headers=FHIR_JSON) is None:
@@ -427,7 +443,7 @@ def main() -> int:
             deleted = wipe_controlled(client, base, ref)
             if deleted:
                 print(f"    wiped {deleted} pre-existing controlled resources")
-            update_patient(client, base, persona, ref)
+            update_patient(client, base, persona, demo_map[pid])
             for res in resources:
                 if request(client, "PUT",
                            f"{base}/{res['resourceType']}/{res['id']}",
