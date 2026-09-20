@@ -76,5 +76,11 @@ export const api = {
   brief: () => req('/brief', { text: true }),
   health: () => req('/api/health'),
   publishBrief: () => req('/brief/publish', { method: 'POST' }),
+  // Advisory AI suggestions — drafts only; the rule engine still owns issues.
+  suggestOwner: (issueId) =>
+    req('/suggest/owner', { method: 'POST', body: { issue_id: issueId } }),
+  suggestField: (issueId) =>
+    req('/suggest/field', { method: 'POST', body: { issue_id: issueId } }),
+  suggestHuddle: () => req('/suggest/huddle', { method: 'POST' }),
   reset: () => req('/demo/reset', { method: 'POST' }),
 }

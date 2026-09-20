@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { SuggestBox, SuggestButton } from './Suggest.jsx'
 
-export default function BriefModal({ text, onClose, canPublish, onPublish }) {
+export default function BriefModal({ text, onClose, canPublish, onPublish, onHuddle }) {
   const [copied, setCopied] = useState('')
   const [published, setPublished] = useState(null) // { url } or { error }
+  const [huddle, setHuddle] = useState(null) // { script } or { error } or 'loading'
+  const [huddleCopied, setHuddleCopied] = useState('')
   const ref = useRef(null)
 
   useEffect(() => {
@@ -36,6 +39,25 @@ export default function BriefModal({ text, onClose, canPublish, onPublish }) {
     }
   }
 
+  const tighten = async () => {
+    setHuddle('loading')
+    try {
+      const res = await onHuddle()
+      setHuddle(res.script ? { script: res.script } : { error: 'No script returned' })
+    } catch (e) {
+      setHuddle({ error: e.message })
+    }
+  }
+
+  const copyHuddle = async () => {
+    try {
+      await navigator.clipboard.writeText(huddle.script)
+      setHuddleCopied('Copied')
+    } catch {
+      setHuddleCopied('')
+    }
+  }
+
   return (
     <div
       className="ov open" role="dialog" aria-modal="true" aria-labelledby="ovt"
@@ -45,6 +67,15 @@ export default function BriefModal({ text, onClose, canPublish, onPublish }) {
         <h2 id="ovt">Shift handoff brief</h2>
         <div className="tag">Open issues, most urgent first. Copy it into your handoff tool or read it aloud at huddle.</div>
         <textarea ref={ref} readOnly value={text} />
+        {huddle?.script && (
+          <SuggestBox label="30-second huddle version" onDismiss={() => setHuddle(null)}>
+            <textarea readOnly aria-label="Huddle script" value={huddle.script} />
+            <div className="row-act end">
+              <span className="tag" aria-live="polite">{huddleCopied}</span>
+              <button className="btn small primary" onClick={copyHuddle}>Copy script</button>
+            </div>
+          </SuggestBox>
+        )}
         <div className="row-act">
           <span className="tag" aria-live="polite">
             {copied}
@@ -57,6 +88,10 @@ export default function BriefModal({ text, onClose, canPublish, onPublish }) {
             {published?.error && ` Publish failed: ${published.error}`}
           </span>
           <button className="btn" onClick={copy}>Copy brief</button>
+          {onHuddle && (
+            <SuggestButton loading={huddle === 'loading'} onClick={tighten}>Tighten for huddle</SuggestButton>
+          )}
+          {huddle?.error && <span className="tag"> {huddle.error}</span>}
           {canPublish && (
             <button className="btn" onClick={publish} disabled={!!published?.url}>
               Publish to chart
