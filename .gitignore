@@ -11,6 +11,9 @@ frontend/dist/
 .env
 .env.*
 !.env.example
+# Public API URL only, never a secret (PRD 6.1) — committed so the Vercel
+# build picks it up without depending on dashboard env settings.
+!frontend/.env.production
 
 # Synthea checkout and generated data
 .synthea/
