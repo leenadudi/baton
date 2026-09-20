@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app import demo_patients, fhir_panel, panel
+from app import demo_patients, fhir_panel, panel, state
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "dataset" / "fixtures" / "p1"
@@ -35,7 +35,7 @@ FAKE_PATIENT = {
 @pytest.fixture
 def p1_built():
     docrefs, tasks, consents, allergies = _load_fixtures()
-    overrides = {"fhirPatientId": "Patient/42157", "name": "Margaret A.", "age": 78,
+    overrides = {"fhirPatientId": "Patient/42157", "name": "Margaret Abbott", "age": 78,
                  "room": "412", "dx": "Hip fracture, ORIF post-op day 2", "dischargeInH": 30}
     return fhir_panel.build_patient_from_chart("p1", overrides, FAKE_PATIENT,
                                                docrefs, tasks, consents, allergies, NOW)
@@ -205,10 +205,10 @@ def test_outputs_read_back(fresh_cache, monkeypatch):
     assert fhir_panel.status()["outputs"] == 2
 
     from app import state
-    state.reset()
-    p1 = panel.build_patient(panel.get_patient("p1"))
+    s = state.fresh()
+    p1 = panel.build_patient(panel.get_patient("p1"), s)
     assert "p1:conflict:weight_bearing" not in {i["id"] for i in p1["issues"]}
-    p2 = panel.build_patient(panel.get_patient("p2"))
+    p2 = panel.build_patient(panel.get_patient("p2"), s)
     assert p2["handoff"]["codeStatus"] == "Full code"
     assert "p2:handoff:codeStatus" not in {i["id"] for i in p2["issues"]}
 
@@ -271,7 +271,7 @@ def test_build_patient_matches_demo_has_info(p1_built):
 
 def test_panel_build_patient_defaults_info_for_demo_fallback():
     demo_p1 = next(p for p in demo_patients.DEMO_PATIENTS if p["id"] == "p1")
-    built = panel.build_patient(json.loads(json.dumps(demo_p1)))
+    built = panel.build_patient(json.loads(json.dumps(demo_p1)), state.fresh())
     assert built["info"] is None
 
 

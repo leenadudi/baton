@@ -6,7 +6,6 @@ import time
 from pathlib import Path
 
 from app import demo_patients, fhir_panel, rules, state
-from app.state import STATE, log_act
 
 TYPE_LABEL = {"conflict": "Conflicting instructions", "handoff": "Incomplete handoff",
               "blocker": "Administrative blocker"}
@@ -29,26 +28,26 @@ def load_patients() -> list[dict]:
     return patients
 
 
-def effective_state() -> dict:
+def effective_state(s: dict) -> dict:
     """Chart write-back state (fhir_panel.chart_state) overlaid with the
-    in-memory STATE; in-memory wins on conflicts."""
+    caller's scope state; the scope state wins on conflicts."""
     eff = state.fresh()
     chart = fhir_panel.chart_state() or {}
     for key, val in chart.items():
         if isinstance(val, dict):
             eff[key].update(copy.deepcopy(val))
     for key in ("filled", "cleared"):  # per-pid dict-of-dicts
-        for pid, sub in STATE[key].items():
+        for pid, sub in s[key].items():
             eff[key].setdefault(pid, {}).update(sub)
     for key in ("escalated", "pendOwners", "owners"):
-        eff[key].update(STATE[key])
+        eff[key].update(s[key])
     chart_notes = eff["added"]
-    for pid, notes in STATE["added"].items():
+    for pid, notes in s["added"].items():
         known = {((n.get("source") or {}).get("id")) for n in chart_notes.get(pid, [])}
         extra = [n for n in notes if (n.get("source") or {}).get("id") not in known]
         eff["added"].setdefault(pid, []).extend(extra)
-    eff["log"] = STATE["log"]
-    eff["nextSeq"] = STATE["nextSeq"]
+    eff["log"] = s["log"]
+    eff["nextSeq"] = s["nextSeq"]
     return eff
 
 
@@ -56,9 +55,9 @@ def get_patient(pid: str) -> dict | None:
     return next((p for p in load_patients() if p["id"] == pid), None)
 
 
-def build_patient(p: dict) -> dict:
+def build_patient(p: dict, s: dict) -> dict:
     pid = p["id"]
-    S = effective_state()
+    S = effective_state(s)
     filled = S["filled"].get(pid, {})
     p["handoff"] = {**p["handoff"], **filled}
     for r in p["pending"]:
@@ -77,23 +76,23 @@ def build_patient(p: dict) -> dict:
     return p
 
 
-def add_note(pid: str, note: dict) -> None:
-    note["seq"] = STATE["nextSeq"]
-    STATE["nextSeq"] += 1
+def add_note(pid: str, note: dict, s: dict) -> None:
+    note["seq"] = s["nextSeq"]
+    s["nextSeq"] += 1
     note["at"] = time.time() * 1000
     note.setdefault("h", 0)
-    STATE["added"].setdefault(pid, []).append(note)
+    s["added"].setdefault(pid, []).append(note)
 
 
-def brief_text() -> str:
-    S = effective_state()
+def brief_text(s: dict) -> str:
+    S = effective_state(s)
     all_items = []
     for p in load_patients():
         for i in rules.get_issues(p, S):
             all_items.append({"p": p, "i": i})
     all_items.sort(key=lambda x: (-rules.W[x["i"]["sev"]], x["p"]["dischargeInH"]))
     un = sum(1 for x in all_items if not S["owners"].get(x["i"]["id"]))
-    lines = ["SHIFT HANDOFF BRIEF for 4 West (synthetic data)",
+    lines = ["SHIFT HANDOFF BRIEF (synthetic data)",
              f"{len(all_items)} open coordination issues, {un} with no owner.", ""]
     if not all_items:
         lines.append("Nothing open. Instructions agree, handoffs are complete, no blockers.")
@@ -103,7 +102,7 @@ def brief_text() -> str:
                      f"{TYPE_LABEL[i['type']]}. {i['title']}.")
         lines.append(f"   {i['sub']}")
         lines.append(f"   Owner: {S['owners'].get(i['id']) or 'UNASSIGNED'}; "
-                     f"discharge target in {p['dischargeInH']}h.")
+                     f"discharge target in {rules.eta_label(p['dischargeInH'])}.")
         lines.append("")
     if len(all_items) > 14:
         lines.append(f"+ {len(all_items) - 14} lower-priority items in Baton.")

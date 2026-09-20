@@ -7,10 +7,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../api.js'
 import { FIELDS, PATIENTS } from '../data/chart.js'
-import { allNotes, briefText, dischStatus, getIssues, riskOf } from '../lib/rules.js'
+import { allNotes, briefText, dischStatus, getIssues, riskOf, suggestFor } from '../lib/rules.js'
 import { useDemoState } from './useDemoState.js'
 
-const COLD_START_MS = 6000
+// Render Free cold starts measured at ~15s. Six seconds of a bare loading line
+// reads as broken, so fall back to the local engine quickly and let the live
+// response upgrade the panel whenever it lands.
+const COLD_START_MS = 2000
 
 // Reshape a mock patient + demo state into exactly what GET /patients returns.
 function normalize(p, s) {
@@ -30,12 +33,14 @@ function normalize(p, s) {
   }
 }
 
-export function useChart() {
+export function useChart(doctor) {
   const [mockState, mockActions] = useDemoState()
   const [served, setServed] = useState(null)
   const [status, setStatus] = useState('loading') // loading | api | mock
   const [fhirWrite, setFhirWrite] = useState(false)
 
+  // Refetch when auth changes: signing in switches from the guest sandbox to
+  // the shared unit state on the server.
   useEffect(() => {
     let live = true
     // Render Free cold-starts take up to a minute and fetch has no default
@@ -52,7 +57,16 @@ export function useChart() {
       .finally(() => clearTimeout(coldStart))
     api.health().then((h) => { if (live) setFhirWrite(!!h?.panel?.fhir_write) }).catch(() => {})
     return () => { live = false; clearTimeout(coldStart) }
-  }, [])
+  }, [doctor])
+
+  // Signed-in clinicians share the unit — poll so a teammate's actions show up.
+  useEffect(() => {
+    if (status !== 'api' || !doctor) return undefined
+    const t = setInterval(() => {
+      api.listPatients().then(setServed).catch(() => {})
+    }, 8000)
+    return () => clearInterval(t)
+  }, [status, doctor])
 
   const patients = useMemo(
     () => (status === 'api' && served ? served : PATIENTS.map((p) => normalize(p, mockState))),
@@ -98,6 +112,12 @@ export function useChart() {
     reset: () => onApi
       ? api.reset().then(api.listPatients).then(setServed)
       : mockActions.reset(),
+
+    // Coordination suggestion — the server's version may be model-written;
+    // offline mode serves the same deterministic rule text locally.
+    suggest: (issue) => onApi
+      ? api.suggest(issue.id)
+      : Promise.resolve(suggestFor(issue)),
 
     // Server owns the brief when available, so it cannot drift from the cards.
     getBrief: () => onApi ? api.brief() : Promise.resolve(briefText(PATIENTS, mockState)),

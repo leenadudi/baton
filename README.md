@@ -2,6 +2,10 @@
 
 Baton drafts the nursing/resident shift handoff from the chart and flags what's missing, contradicted, or stuck — so a nurse or resident isn't re-reading a full chart to catch what the last shift already knew.
 
+**Live demo:** <https://batoncom.vercel.app> — sign in to share the unit view with
+your team, or continue as guest for a private sandbox. The API sleeps when idle,
+so the first request after a quiet period can take up to a minute.
+
 Three flag types:
 
 - **Conflicting instructions** — different care team members left contradictory orders/notes on the same topic (e.g. diet, anticoagulation, weight-bearing). Baton surfaces both source snippets and authors; it does not decide who's right.
@@ -93,6 +97,41 @@ Optional write-back is off by default; set `FHIR_WRITE=1` to let Baton append it
 - `GET /fhir/status` — FHIR base URL and server `fhirVersion`
 - `GET /fhir/patients` — patients from `dataset/patient_ids.json` (or a `Patient` search if absent)
 - `GET /fhir/patients/{id}/chart` — the full chart (Patient, DocumentReference, MedicationRequest, Task, etc.) with per-type counts
+
+## Deploying the frontend
+
+The Vercel project carries **no environment variables** — everything needed is in
+the repo, so a clean clone deploys to an identical site:
+
+```sh
+git clone -b frontend-auth https://github.com/leenadudi/baton
+cd baton/frontend && npm install
+npx vercel@latest link      # pick the existing project, or create your own
+npx vercel@latest --prod
+```
+
+Two committed files do the work, and both matter:
+
+- `frontend/.env.production` sets `VITE_API_URL=/proxy`. Do **not** re-add
+  `VITE_API_URL` in Vercel project settings — Vite's `loadEnv` lets `process.env`
+  override `.env` files, so a project-level variable silently wins over this and
+  the build talks to the backend cross-origin.
+- `frontend/vercel.json` rewrites `/proxy/*` to the Render backend at the edge.
+  That keeps every API call same-origin, so the backend CORS allowlist (which
+  only contains `localhost:5173`) never applies to the deployed site.
+
+Deploying from a directory other than `frontend/` will fail: `package.json` is
+not at the repo root. If the project is ever connected to Git, set **Root
+Directory** to `frontend` and the **Production Branch** to the branch you
+actually ship, not `main`.
+
+Before deploying, run the render check — `vite build` passing does not prove the
+app runs, because a dropped arrow in a function still parses:
+
+```sh
+cd frontend
+npx vite build --ssr .smoke/render-check.jsx --outDir .smoke/out && node .smoke/out/render-check.js
+```
 
 ### Demo fixtures
 

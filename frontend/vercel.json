@@ -3,6 +3,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/((?!assets/|prototype.html).*)", "destination": "/index.html" }
+    { "source": "/proxy/:path*", "destination": "https://baton-mf85.onrender.com/:path*" },
+    { "source": "/((?!assets/|prototype.html|proxy/).*)", "destination": "/index.html" }
   ]
 }

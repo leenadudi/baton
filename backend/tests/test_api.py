@@ -9,7 +9,7 @@ from app.main import app
 def clean_state(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("PANEL_SOURCE", "demo")
-    state.reset()
+    state.reset_all()
     yield
 
 
@@ -150,3 +150,158 @@ def test_demo_reset():
     assert client.post("/demo/reset").json() == {"status": "ok"}
     ids = {i["id"] for i in patient("p2")["issues"]}
     assert "p2:handoff:codeStatus" in ids
+
+
+JUDGE_A = {"X-Session-Id": "judge-a"}
+JUDGE_B = {"X-Session-Id": "judge-b"}
+
+
+def test_sessions_are_isolated():
+    """One judge's mutation must not change another judge's panel."""
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=JUDGE_A)
+    a = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_A).json()["issues"]}
+    b = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_B).json()["issues"]}
+    default = {i["id"] for i in patient("p1")["issues"]}
+    assert "p1:blocker:b1" not in a
+    assert "p1:blocker:b1" in b
+    assert "p1:blocker:b1" in default
+
+
+def test_reset_only_clears_own_session():
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=JUDGE_A)
+    client.patch("/issues/p1:blocker:b2", json={"action": "clear"}, headers=JUDGE_B)
+    client.post("/demo/reset", headers=JUDGE_A)
+    a = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_A).json()["issues"]}
+    b = {i["id"] for i in client.get("/patients/p1", headers=JUDGE_B).json()["issues"]}
+    assert "p1:blocker:b1" in a
+    assert "p1:blocker:b2" not in b
+
+
+# ---------- auth + shared unit state + audit trail ----------
+
+
+def signup(email="paging@example.com", name="Dr. Paging"):
+    resp = client.post("/auth/register",
+                       json={"email": email, "password": "nightfloat",
+                             "name": name})
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    return {"Authorization": f"Bearer {body['token']}"}, body["doctor"]
+
+
+def test_register_login_me():
+    headers, doctor = signup()
+    assert doctor["name"] == "Dr. Paging"
+    assert client.get("/auth/me", headers=headers).json()["email"] == \
+        "paging@example.com"
+    resp = client.post("/auth/login", json={"email": "paging@example.com",
+                                            "password": "nightfloat"})
+    assert resp.status_code == 200
+    assert client.post("/auth/login", json={"email": "paging@example.com",
+                                            "password": "wrong"}).status_code == 401
+    assert client.get("/auth/me").status_code == 401
+
+
+def test_register_validation():
+    assert client.post("/auth/register", json={
+        "email": "nope", "password": "nightfloat", "name": "X"}).status_code == 422
+    assert client.post("/auth/register", json={
+        "email": "a@b.co", "password": "shrt", "name": "X"}).status_code == 422
+    signup()
+    assert client.post("/auth/register", json={
+        "email": "paging@example.com", "password": "nightfloat",
+        "name": "Dupe"}).status_code == 409
+
+
+def test_signed_in_doctors_share_unit_state():
+    """Two signed-in clinicians see each other's changes (one unit state)."""
+    ha, _ = signup("a@example.com", "Dr. A")
+    hb, _ = signup("b@example.com", "Dr. B")
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=ha)
+    b_issues = {i["id"] for i in
+                client.get("/patients/p1", headers=hb).json()["issues"]}
+    assert "p1:blocker:b1" not in b_issues
+
+
+def test_guest_sandbox_separate_from_unit():
+    ha, _ = signup()
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=JUDGE_A)
+    unit = {i["id"] for i in client.get("/patients/p1", headers=ha).json()["issues"]}
+    guest = {i["id"] for i in
+             client.get("/patients/p1", headers=JUDGE_A).json()["issues"]}
+    assert "p1:blocker:b1" in unit
+    assert "p1:blocker:b1" not in guest
+
+
+def test_activity_records_attribution():
+    ha, doctor = signup()
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=ha)
+    acts = client.get("/activity", headers=ha).json()
+    assert acts and acts[0]["doctorName"] == "Dr. Paging"
+    assert acts[0]["doctorId"] == doctor["id"]
+    assert acts[0]["patientId"] == "p1"
+    assert acts[0]["action"] == "clear"
+    p1 = client.get("/activity", params={"patient": "p1"}, headers=ha).json()
+    assert len(p1) == 1
+    none = client.get("/activity", params={"patient": "p2"}, headers=ha).json()
+    assert none == []
+    mine = client.get("/activity", params={"doctor": doctor["id"]},
+                      headers=ha).json()
+    assert len(mine) == 1
+
+
+def test_doctors_endpoint_lists_registered():
+    _, d = signup()
+    docs = client.get("/doctors").json()
+    assert {"id": d["id"], "name": "Dr. Paging"} in docs
+
+
+def test_unit_reset_records_action():
+    ha, doctor = signup()
+    client.patch("/issues/p1:blocker:b1", json={"action": "clear"}, headers=ha)
+    client.post("/demo/reset", headers=ha)
+    assert "p1:blocker:b1" in {i["id"] for i in
+                             client.get("/patients/p1", headers=ha).json()["issues"]}
+    acts = client.get("/activity", headers=ha).json()
+    assert [a["action"] for a in acts] == ["reset"]
+    assert acts[0]["doctorName"] == "Dr. Paging"
+
+
+def test_suggest_rule_fallback_without_key():
+    """With no OPENAI_API_KEY the suggest endpoint serves the deterministic
+    rule-based text — the demo must never depend on the model being up."""
+    resp = client.post("/issues/p1:conflict:anticoagulation/suggest")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["source"] == "rules"
+    assert body["text"]
+    # A suggestion for a conflict must never pick a winner.
+    assert "reconcile" in body["text"].lower()
+
+
+def test_suggest_blocker_and_handoff_fallbacks():
+    resp = client.post("/issues/p1:blocker:b1/suggest")
+    assert resp.status_code == 200
+    assert resp.json()["source"] == "rules"
+    resp = client.post("/issues/p1:handoff:followUpOwner/suggest")
+    assert resp.status_code == 200
+    assert resp.json()["source"] == "rules"
+
+
+def test_suggest_unknown_issue_404():
+    assert client.post("/issues/p1:conflict:nonsense/suggest").status_code == 404
+
+
+def test_suggest_sees_scope_state():
+    """The suggestion fingerprint covers issue state — an escalated blocker
+    gets a different suggestion than an untouched one, scoped per caller."""
+    ha, _ = signup()
+    base = client.post("/issues/p1:blocker:b1/suggest", headers=ha).json()
+    client.patch("/issues/p1:blocker:b1", json={"action": "escalate"}, headers=ha)
+    esc = client.post("/issues/p1:blocker:b1/suggest", headers=ha).json()
+    assert esc["text"] != base["text"]
+    assert "escalat" in esc["text"].lower()
+    # A guest's sandbox still sees the un-escalated suggestion.
+    guest = client.post("/issues/p1:blocker:b1/suggest",
+                        headers={"X-Session-Id": "sug-guest"}).json()
+    assert guest["text"] == base["text"]

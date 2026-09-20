@@ -202,3 +202,65 @@ a.pt{text-decoration:none;color:inherit;}
 .ov{overscroll-behavior:contain;}
 /* Skip the 300ms double-tap delay on touch. */
 button,.chip,.pt,.btn{touch-action:manipulation;}
+
+/* Auth gate + search + team activity */
+.auth{max-width:520px;margin:0 auto;padding-top:8vh;}
+.auth-card{margin-top:20px;}
+.auth-brand{flex-direction:column;align-items:center;gap:12px;text-align:center;}
+.auth-brand .mark{width:100%;height:auto;border-radius:20px;border:1px solid var(--line);}
+.auth-card .row-act{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+.auth-card .row-act .btn{width:100%;justify-content:center;}
+.auth .foot{text-align:center;}
+.auth-card h2{font-family:var(--head);margin:0 0 6px;font-size:20px;}
+.auth-card .form{display:flex;flex-direction:column;gap:10px;margin:14px 0 4px;}
+.auth-err{color:#b3261e;font-size:13px;}
+.search{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 10px;margin:0 0 8px;color:var(--ink);}
+.team-log{max-height:320px;overflow-y:auto;margin-top:10px;}
+.log li b{color:var(--ink);font-weight:600;}
+.who{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px;}
+.who:hover{text-decoration-color:var(--ink);}
+.doc-head{display:flex;align-items:baseline;gap:10px;margin:6px 0 8px;}
+/* Patient identity stays put while the issue list scrolls, so you never lose
+   track of who you are looking at. Matches the sticky offset of the list rail. */
+.pbar{position:sticky;top:12px;z-index:5;}
+.vitals{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;}
+.vital{font-size:12.5px;font-weight:500;padding:2px 9px;border-radius:6px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);}
+.vital b{color:var(--ink);font-weight:600;}
+.vital.warn{background:var(--handoff-bg);border-color:var(--handoff);color:var(--handoff);}
+@media (max-width: 900px){
+  /* The list rail already goes static here; a sticky header would eat the viewport. */
+  .pbar{position:static;}
+}
+
+/* Identifying data under the patient name. */
+.ident{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:12.5px;color:var(--ink-2);}
+.ident b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:12px;}
+
+/* Borrowed from the reference dashboards: align the rail into columns so Room,
+   name and the counts line up down the list instead of shifting with name length. */
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.legend{display:flex;gap:5px;}
+.legend .cnt{min-width:24px;font-weight:600;opacity:.75;}
+.pt .row1{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:baseline;}
+.pt .room,.pt .age,.cnt{font-variant-numeric:tabular-nums;}
+.pt .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pt .age{margin-left:0;}
+
+/* Collapse the rail to give a long conflict card the full width. */
+.grid.solo{grid-template-columns:minmax(0,1fr);}
+.grid.solo .list{display:none;}
+
+/* Issue-card provenance + suggestion — additive; sits under each card body. */
+.prov{margin-top:10px;border-top:1px solid var(--line);padding-top:6px;}
+.prov summary{cursor:pointer;font-size:12px;color:var(--ink-2);user-select:none;}
+.prov summary:hover{color:var(--ink);}
+.prov-rule{font-size:12.5px;color:var(--ink-2);margin:8px 0 0;max-width:80ch;}
+.prov-src{list-style:none;padding:0;margin:6px 0 0;font-size:12.5px;color:var(--ink-2);}
+.prov-src li{padding:2px 0;}
+.prov-src b{color:var(--ink);}
+.sug-wrap{margin-top:10px;}
+.btn.suggest{background:var(--blocker-bg);border-color:var(--blocker);color:var(--blocker);font-weight:600;}
+.btn.suggest:hover{background:var(--blocker);color:var(--surface);border-color:var(--blocker);}
+.btn.suggest:disabled{opacity:.6;}
+.sug{font-size:13.5px;margin:8px 0 0;max-width:80ch;}

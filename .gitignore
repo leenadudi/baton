@@ -18,3 +18,6 @@ frontend/dist/
 # Synthea checkout and generated data
 .synthea/
 dataset/synthea/
+
+# SSR render-check build output
+frontend/.smoke/out/

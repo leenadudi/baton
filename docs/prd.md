@@ -206,7 +206,8 @@ Localhost is for development only. Judges need one public URL that does list →
 | React SPA | **Vercel** Hobby | Native Vite static deploy. `VITE_API_URL` = Render origin. |
 | FastAPI | **Render** Free Web Service | Runs Python as-is (FHIR reads + OpenAI). Vercel is a poor fit for long-lived FastAPI + outbound FHIR/OpenAI. |
 | Chart data | Public **HAPI FHIR** test server | Already free; Amy loads Synthea here. |
-| Secrets | Render env vars | `OPENAI_API_KEY`, `FHIR_BASE_URL`. Not on Vercel. |
+| Secrets | Render env vars | `OPENAI_API_KEY`, `FHIR_BASE_URL`, `MONGODB_URI`. Not on Vercel. |
+| Demo state + auth | **MongoDB Atlas** M0 (optional) | Users, tokens, shared unit state, audit trail. Falls back to memory when `MONGODB_URI` is unset. |
 
 **CORS:** allow `http://localhost:5173` **and** the Vercel production origin (and the `*.vercel.app` preview origin if we share preview links).
 
@@ -253,10 +254,14 @@ Lock this before splitting implementation. FHIR resource shapes are the chart; *
 | `PATCH` | `/issues/:id` | Leena | Demo-only local state: owner, fill field, clear/escalate blocker, adopt a conflict value |
 | `POST` | `/extract` | Nicole (logic) / Leena (route) | Note text in → tags out |
 | `GET` | `/brief` | Leena | Unit-wide shift-handoff text (all patients, severity then soonest discharge, cap 14 + remainder line); never writes FHIR |
+| `POST` | `/auth/register` `/auth/login` | — | Email + password demo accounts → bearer token |
+| `GET` | `/auth/me`, `POST` `/auth/logout` | — | Session check / sign out |
+| `GET` | `/doctors` | — | Registered clinicians for the doctor search |
+| `GET` | `/activity?patient=&doctor=` | — | Audit trail: who did what, per patient or per doctor |
 
 CORS must allow `http://localhost:5173` and the deployed Vercel origin(s).
 
-Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) may live in memory only — Render cold starts reset them. That is acceptable: re-do the demo action after a wake rather than persisting demo state.
+Demo mutations (`POST /patients/:id/notes`, `PATCH /issues/:id`) persist in MongoDB Atlas when `MONGODB_URI` is set and fall back to memory otherwise. State is scoped: signed-in clinicians (`Authorization: Bearer`) share the `unit` scope — one doctor's change is visible to every teammate, like a real unit — while guests (`X-Session-Id`) get an isolated sandbox. Every mutation writes an audit record (doctor, patient, action, timestamp) that backs the patient and doctor activity searches. Schema: `docs/schema.md`.
 
 ### 8.2 `POST /extract`
 

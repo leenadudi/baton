@@ -35,7 +35,7 @@ class FakeWriter:
 def clean(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("PANEL_SOURCE", "demo")
-    state.reset()
+    state.reset_all()
     yield
 
 

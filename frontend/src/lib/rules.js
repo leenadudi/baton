@@ -3,13 +3,50 @@
 // prefer the server engine so cards and brief cannot drift.
 import { TOPICS, FIELDS, TYPE_LABEL, W } from '../data/chart.js'
 
+// Hours read fine up to a day; past that "44h" makes you do arithmetic to see
+// it is not today. Switch to days + hours at the 24h boundary.
+export function etaLabel(h) {
+  if (h < 24) return `${h}h`
+  const d = Math.floor(h / 24)
+  const rem = h % 24
+  return rem ? `${d}d ${rem}h` : `${d}d`
+}
+
 export function allNotes(p, state) {
   return p.notes.concat(state.added[p.id] || [])
 }
 
-function tagOf(n, topic) {
+export function tagOf(n, topic) {
   const t = n.tags.find((x) => x[0] === topic)
   return t ? t[1] : null
+}
+
+// Deterministic coordination suggestion for offline/mock mode — mirrors the
+// fallback branch of backend/app/suggest.py. Process steps only, never a
+// clinical answer, and never a winner when instructions conflict.
+export function suggestFor(issue) {
+  let text
+  if (issue.type === 'conflict') {
+    const roles = [...new Set(
+      Object.values(issue.vals || {}).flat().map((n) => n.role).filter(Boolean),
+    )].sort()
+    text = `Have the attending reconcile this one — ask ${roles.join(' and ') || 'each team'} ` +
+      'to confirm which instruction was last carried out before anyone follows ' +
+      'either. Baton flags conflicts; it does not pick the winner.'
+  } else if (issue.type === 'handoff') {
+    text = issue.fix?.kind === 'pending'
+      ? 'Assign a named owner for this pending result before shift change — ' +
+        'unowned follow-ups are the ones that come back abnormal and go unseen.'
+      : 'Fill this field before the next shift takes over — it is required ' +
+        'for a complete handoff.'
+  } else {
+    text = issue.escalated
+      ? 'Escalation is logged — confirm the charge nurse or bed coordinator ' +
+        'has seen it, and note the expected resolution time in the handoff.'
+      : 'Assign an owner and confirm with whoever it is waiting on; if it has ' +
+        'not moved by the next check-in, escalate to the charge nurse.'
+  }
+  return { text, source: 'rules' }
 }
 
 export function ago(n) {
@@ -94,7 +131,7 @@ export function getIssues(p, state) {
     issues.push({
       id: `${p.id}:blocker:${b.id}`, pid: p.id, type: 'blocker', sev,
       title: b.label,
-      sub: `Waiting on ${b.waitingOn} for ${b.ageH}h. Discharge target in ${p.dischargeInH}h.`,
+      sub: `Waiting on ${b.waitingOn} for ${b.ageH}h. Discharge target in ${etaLabel(p.dischargeInH)}.`,
       why: b.cat + (b.blocks ? ' item that blocks discharge.' : ' item.'),
       bid: b.id, escalated: !!state.escalated[`${p.id}|${b.id}`],
     })
@@ -130,7 +167,7 @@ export function briefText(patients, state) {
   all.sort((a, b) => W[b.i.sev] - W[a.i.sev] || a.p.dischargeInH - b.p.dischargeInH)
   const un = all.filter((x) => !state.owners[x.i.id]).length
   const L = [
-    'SHIFT HANDOFF BRIEF for 4 West (synthetic data)',
+    'SHIFT HANDOFF BRIEF (synthetic data)',
     `${all.length} open coordination issues, ${un} with no owner.`,
     '',
   ]
@@ -138,7 +175,7 @@ export function briefText(patients, state) {
   all.slice(0, 14).forEach((x, k) => {
     L.push(`${k + 1}. [${x.i.sev.toUpperCase()}] Rm ${x.p.room} ${x.p.name}: ${TYPE_LABEL[x.i.type]}. ${x.i.title}.`)
     L.push(`   ${x.i.sub}`)
-    L.push(`   Owner: ${state.owners[x.i.id] || 'UNASSIGNED'}; discharge target in ${x.p.dischargeInH}h.`)
+    L.push(`   Owner: ${state.owners[x.i.id] || 'UNASSIGNED'}; discharge target in ${etaLabel(x.p.dischargeInH)}.`)
     L.push('')
   })
   if (all.length > 14) L.push(`+ ${all.length - 14} lower-priority items in Baton.`)

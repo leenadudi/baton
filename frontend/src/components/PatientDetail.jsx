@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useOutletContext, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { DS_LABEL, FIELDS, TOPICS } from '../data/chart.js'
 import { ago, handoffProgress } from '../lib/rules.js'
 import IssueCard from './IssueCard.jsx'
@@ -32,12 +32,12 @@ function InfoList({ title, items, render }) {
   )
 }
 
-export default function PatientDetail() {
+export default function PatientDetail({ patients, actions }) {
   const { patientId } = useParams()
-  const { patients, actions } = useOutletContext()
   const [filter, setFilter] = useState('all')
+  const [tab, setTab] = useState('tasks')
   // Route component is reused across patients; reset the filter like the prototype does on select.
-  useEffect(() => setFilter('all'), [patientId])
+  useEffect(() => { setFilter('all'); setTab('tasks') }, [patientId])
   const p = patients.find((x) => x.id === patientId)
 
   if (!p) {
@@ -45,7 +45,7 @@ export default function PatientDetail() {
       <main>
         <div className="empty">
           <b>Patient not found</b>
-          Room {patientId} is not on 4 West. Pick a patient from the list.
+          Room {patientId} is not at this hospital. Pick a patient from the list.
         </div>
       </main>
     )
@@ -67,25 +67,25 @@ export default function PatientDetail() {
 
   return (
     <main>
-      <section className="panel">
-        <div className="dhead">
-          <div>
-            <h2>{p.name}, {p.age}</h2>
-            <div className="sub">Room {p.room}. {p.dx}.</div>
-            <div style={{ marginTop: 8 }}>
-              <span className={`dch ${st}`}>Discharge in {p.dischargeInH}h: {DS_LABEL[st]}</span>
-            </div>
-          </div>
-          <div className="meter">
-            <div className="lab"><span>Handoff completeness</span><b>{hp.pct}%</b></div>
-            <div className="track"><span style={{ width: `${hp.pct}%` }} /></div>
-            <div className="lab" style={{ marginTop: 4 }}>
-              <span>{hp.done} of {hp.total} items in place</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="chips tabs" role="tablist" aria-label="Patient sections">
+        <button
+          role="tab" aria-selected={tab === 'tasks'}
+          className={`chip${tab === 'tasks' ? ' on' : ''}`}
+          onClick={() => setTab('tasks')}
+        >Tasks ({counts.all})</button>
+        <button
+          role="tab" aria-selected={tab === 'notes'}
+          className={`chip${tab === 'notes' ? ' on' : ''}`}
+          onClick={() => setTab('notes')}
+        >Orders &amp; notes</button>
+        <button
+          role="tab" aria-selected={tab === 'info'}
+          className={`chip${tab === 'info' ? ' on' : ''}`}
+          onClick={() => setTab('info')}
+        >Patient info</button>
+      </div>
 
+      {tab === 'info' && (
       <section className="panel">
         <div className="sec-h">
           <h3>Patient info</h3>
@@ -134,54 +134,10 @@ export default function PatientDetail() {
           <div className="tag">Not available — offline/demo mode, or nothing recorded on the chart.</div>
         )}
       </section>
+      )}
 
-      <section className="panel">
-        <div className="sec-h">
-          <h3>{filter === 'completed' ? 'Completed' : 'What needs attention'}</h3>
-          <span className="hint">
-            {filter === 'completed' ? 'Resolved on this patient, most recent first' : 'Highest priority first'}
-          </span>
-        </div>
-        <div className="chips" role="group" aria-label="Filter issues">
-          {FILTERS.map(([f, label]) => (
-            <button
-              key={f}
-              className={`chip${filter === f ? ' on' : ''}`}
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-            >{label} ({counts[f]})</button>
-          ))}
-        </div>
-        {filter === 'completed' ? (
-          completedLog.length ? (
-            <ul className="log">
-              {completedLog.map((e, k) => (
-                <li key={k}>
-                  <time>{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
-                  {e.text}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="empty">
-              <b>Nothing completed yet</b>
-              Clearing a blocker, filling a handoff field, assigning an owner, or resolving a conflict will show up here.
-            </div>
-          )
-        ) : shown.length ? (
-          shown.map((i) => (
-            <IssueCard key={i.id} issue={i} actions={actions} />
-          ))
-        ) : (
-          <div className="empty">
-            <b>{issues.length ? 'Nothing in this filter' : 'No open coordination issues'}</b>
-            {issues.length
-              ? 'Switch filters to see the rest.'
-              : 'Instructions agree, the handoff is complete, and nothing is stuck.'}
-          </div>
-        )}
-      </section>
-
+      {tab === 'tasks' && (
+      <>
       <section className="panel">
         <div className="sec-h">
           <h3>Handoff checklist</h3>
@@ -217,6 +173,57 @@ export default function PatientDetail() {
 
       <section className="panel">
         <div className="sec-h">
+          <h3>{filter === 'completed' ? 'Completed' : 'What needs attention'}</h3>
+          <span className="hint">
+            {filter === 'completed' ? 'Resolved on this patient, most recent first' : 'Highest priority first'}
+          </span>
+        </div>
+        <div className="chips" role="group" aria-label="Filter issues">
+          {FILTERS.map(([f, label]) => (
+            <button
+              key={f}
+              className={`chip${filter === f ? ' on' : ''}`}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
+            >{label} ({counts[f]})</button>
+          ))}
+        </div>
+        {filter === 'completed' ? (
+          completedLog.length ? (
+            <ul className="log">
+              {completedLog.map((e, k) => (
+                <li key={k}>
+                  <time>{new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>
+                  {e.by ? `${e.by} — ` : ''}{e.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="empty">
+              <b>Nothing completed yet</b>
+              Clearing a blocker, filling a handoff field, assigning an owner, or resolving a conflict will show up here.
+            </div>
+          )
+        ) : shown.length ? (
+          shown.map((i) => (
+            <IssueCard key={i.id} issue={i} actions={actions} notes={notes} />
+          ))
+        ) : (
+          <div className="empty">
+            <b>{issues.length ? 'Nothing in this filter' : 'No open coordination issues'}</b>
+            {issues.length
+              ? 'Switch filters to see the rest.'
+              : 'Instructions agree, the handoff is complete, and nothing is stuck.'}
+          </div>
+        )}
+      </section>
+      </>
+      )}
+
+      {tab === 'notes' && (
+      <>
+      <section className="panel">
+        <div className="sec-h">
           <h3>Orders and notes</h3>
           <span className="hint">Newest first. Tags show the instruction Baton read.</span>
         </div>
@@ -240,6 +247,8 @@ export default function PatientDetail() {
         ))}
         <AddNoteForm pid={p.id} actions={actions} />
       </section>
+      </>
+      )}
     </main>
   )
 }

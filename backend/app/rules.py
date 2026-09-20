@@ -42,6 +42,14 @@ FIELDS = [
 W = {"high": 3, "med": 2, "low": 1}
 
 
+def eta_label(h: int) -> str:
+    """Hours up to a day, then days + hours: "44h" reads as today at a glance."""
+    if h < 24:
+        return f"{h}h"
+    d, rem = divmod(h, 24)
+    return f"{d}d {rem}h" if rem else f"{d}d"
+
+
 def empty_state() -> dict:
     return {"added": {}, "filled": {}, "pendOwners": {}, "cleared": {}, "escalated": {}}
 
@@ -132,7 +140,8 @@ def get_issues(p: dict, state: dict | None = None) -> list[dict]:
         issues.append({
             "id": f"{p['id']}:blocker:{b['id']}", "pid": p["id"], "type": "blocker",
             "sev": sev, "title": b["label"],
-            "sub": f"Waiting on {b['waitingOn']} for {b['ageH']}h. Discharge target in {p['dischargeInH']}h.",
+            "sub": f"Waiting on {b['waitingOn']} for {b['ageH']}h. "
+                   f"Discharge target in {eta_label(p['dischargeInH'])}.",
             "why": b["cat"] + (" item that blocks discharge." if b["blocks"] else " item."),
             "bid": b["id"],
             "escalated": bool(S.get("escalated", {}).get(f"{p['id']}|{b['id']}"))})
