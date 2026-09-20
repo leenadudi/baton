@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import Icon from './Icon.jsx'
 
 // Nav items map to things Baton actually does. No placeholder destinations.
-export default function Sidebar({ query, onQuery, onBrief, onReset, onTeam, auth }) {
+export default function Sidebar({ query, onQuery, onReset, auth }) {
   return (
     <aside className="side">
       <div className="side-brand">
@@ -29,19 +29,6 @@ export default function Sidebar({ query, onQuery, onBrief, onReset, onTeam, auth
         <Icon name="grid" /><span>Unit panel</span>
       </NavLink>
 
-      <div className="side-lbl">Handoff</div>
-      <button className="nav-i" onClick={onBrief}>
-        <Icon name="brief" /><span>Shift brief</span>
-      </button>
-      <button className="nav-i" onClick={onReset}>
-        <Icon name="reset" /><span>Reset demo</span>
-      </button>
-      {onTeam && (
-        <button className="nav-i" onClick={onTeam}>
-          <Icon name="grid" /><span>Team activity</span>
-        </button>
-      )}
-
       {auth && (
         <div className="side-who">
           {auth.doctor ? (
@@ -61,6 +48,9 @@ export default function Sidebar({ query, onQuery, onBrief, onReset, onTeam, auth
       <div className="side-foot">
         Synthetic data, no PHI. Baton is a coordination aid and does not replace
         clinical judgment.
+        {onReset && (
+          <button className="lnk" onClick={onReset}>Reset demo data</button>
+        )}
       </div>
     </aside>
   )

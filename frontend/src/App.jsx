@@ -34,8 +34,7 @@ function Dashboard({ chart, auth, onBrief, onTeam }) {
 
   return (
     <div className="app">
-      <Sidebar query={query} onQuery={setQuery} onBrief={onBrief}
-        onReset={actions.reset} onTeam={onTeam} auth={auth} />
+      <Sidebar query={query} onQuery={setQuery} onReset={actions.reset} auth={auth} />
       <div className="main">
         <header className="topbar">
           <div>
@@ -47,6 +46,7 @@ function Dashboard({ chart, auth, onBrief, onTeam }) {
           </div>
           <div className="grp">
             <StatusPill status={status} />
+            {onTeam && <button className="btn" onClick={onTeam}>Team activity</button>}
             <button className="btn primary" onClick={onBrief}>Shift brief</button>
           </div>
         </header>
@@ -72,7 +72,7 @@ function Profile({ chart, auth, onBrief, onTeam }) {
 
   return (
     <div className="app iconrail">
-      <Sidebar onBrief={onBrief} onReset={actions.reset} onTeam={onTeam} auth={auth} />
+      <Sidebar onReset={actions.reset} auth={auth} />
       <div className="main">
         <header className="topbar">
           <Link className="back" to="/patients">
@@ -80,6 +80,7 @@ function Profile({ chart, auth, onBrief, onTeam }) {
           </Link>
           <div className="grp">
             <StatusPill status={status} />
+            {onTeam && <button className="btn" onClick={onTeam}>Team activity</button>}
             <button className="btn primary" onClick={onBrief}>Shift brief</button>
           </div>
         </header>
@@ -131,7 +132,7 @@ function Shell() {
   if (chart.status === 'loading') {
     return (
       <div className="app">
-        <Sidebar onBrief={() => {}} onReset={() => {}} />
+        <Sidebar />
         <div className="main">
           <div className="content">
             <p className="intro" role="status" aria-live="polite">
