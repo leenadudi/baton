@@ -39,6 +39,7 @@ def prune() -> None:
     _store.get_store().prune()
 
 
-def log_act(s: dict, pid: str, text: str, by: str | None = None) -> None:
+def log_act(s: dict, pid: str, text: str, by: str | None = None,
+            by_id: str | None = None) -> None:
     s["log"].setdefault(pid, []).insert(
-        0, {"at": time.time() * 1000, "text": text, "by": by})
+        0, {"at": time.time() * 1000, "text": text, "by": by, "byId": by_id})

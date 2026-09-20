@@ -16,6 +16,10 @@ function Panel() {
   const { patients, status, actions } = useChart(doctor)
   const [brief, setBrief] = useState(null)
   const [team, setTeam] = useState(false)
+  const [teamDoctor, setTeamDoctor] = useState(null)
+
+  const openDoctor = (d) => { setTeamDoctor(d); setTeam(true) }
+  const closeTeam = () => { setTeam(false); setTeamDoctor(null) }
 
   const openBrief = () => actions.getBrief().then(setBrief)
 
@@ -53,7 +57,7 @@ function Panel() {
           ) : (
             <span className="pill" title="Your changes are private to this browser">Guest sandbox</span>
           )}
-          <button className="btn" onClick={() => setTeam(true)}>Team activity</button>
+          <button className="btn" onClick={() => { setTeamDoctor(null); setTeam(true) }}>Team activity</button>
           <button className="btn primary" onClick={openBrief}>Shift brief</button>
           <button className="btn ghost" onClick={actions.reset}>Reset demo</button>
           {doctor
@@ -83,7 +87,7 @@ function Panel() {
 
       <div className="grid">
         <PatientList patients={patients} />
-        <Outlet context={{ patients, actions }} />
+        <Outlet context={{ patients, actions, openDoctor }} />
       </div>
 
       <p className="foot">
@@ -94,7 +98,7 @@ function Panel() {
       {brief !== null && (
         <BriefModal text={brief} onClose={() => setBrief(null)} />
       )}
-      {team && <TeamModal patients={patients} onClose={() => setTeam(false)} />}
+      {team && <TeamModal patients={patients} initial={teamDoctor} onClose={closeTeam} />}
     </div>
   )
 }

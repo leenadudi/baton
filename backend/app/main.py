@@ -205,7 +205,8 @@ def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
             target: str | None = None) -> None:
     doctor_name = ctx.doctor["name"] if ctx.doctor else "Guest"
     if pid:
-        state.log_act(ctx.s, pid, text, by=doctor_name)
+        state.log_act(ctx.s, pid, text, by=doctor_name,
+                      by_id=ctx.doctor["id"] if ctx.doctor else None)
     store_mod.get_store().record_action(ctx.scope, {
         "at": int(time.time() * 1000),
         "doctorId": ctx.doctor["id"] if ctx.doctor else None,

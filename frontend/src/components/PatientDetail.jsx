@@ -9,7 +9,7 @@ const FILTERS = [['all','All'],['conflict','Conflicts'],['handoff','Handoff gaps
 
 export default function PatientDetail() {
   const { patientId } = useParams()
-  const { patients, actions } = useOutletContext()
+  const { patients, actions, openDoctor } = useOutletContext()
   const [filter, setFilter] = useState('all')
   // Route component is reused across patients; reset the filter like the prototype does on select.
   useEffect(() => setFilter('all'), [patientId])
@@ -153,7 +153,9 @@ export default function PatientDetail() {
             {log.slice(0, 12).map((e, k) => (
               <li key={k}>
                 <time>{new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-                {e.by && <b>{e.by} · </b>}
+                {e.by && (e.byId
+                  ? <button className="who" onClick={() => openDoctor({ id: e.byId, name: e.by })}>{e.by}</button>
+                  : <b>{e.by}</b>)}{e.by && ' · '}
                 {e.text}
               </li>
             ))}
