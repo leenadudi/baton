@@ -189,5 +189,16 @@ details.how li{margin:4px 0;}
   @keyframes pop{from{opacity:.4;transform:translateY(4px);}to{opacity:1;transform:none;}}
 }
 
-/* --- React port additions (patient cards are router links, not buttons) --- */
+/* --- React port additions --- */
+/* Patient cards are router links, not buttons. */
 a.pt{text-decoration:none;color:inherit;}
+/* Filter chips are the main control on the detail pane; .btn and .pt already
+   have hover feedback, .chip was the only interactive element without it. */
+.chip:hover{border-color:var(--ink-2);}
+.chip.on:hover{opacity:.9;border-color:var(--ink);}
+/* Tell the browser to theme native controls (selects, scrollbars) to match. */
+:root{color-scheme:light dark;}
+/* Scrolling the brief must not scroll the panel behind it. */
+.ov{overscroll-behavior:contain;}
+/* Skip the 300ms double-tap delay on touch. */
+button,.chip,.pt,.btn{touch-action:manipulation;}

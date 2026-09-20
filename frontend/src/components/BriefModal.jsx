@@ -8,7 +8,13 @@ export default function BriefModal({ text, onClose, canPublish, onPublish }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    // Move focus into the dialog, and hand it back to whatever opened it.
+    const opener = document.activeElement
+    ref.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (opener instanceof HTMLElement) opener.focus()
+    }
   }, [onClose])
 
   const copy = async () => {
