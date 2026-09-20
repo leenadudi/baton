@@ -64,7 +64,7 @@ export default function LoginScreen({ onLogin, onRegister, onGuest }) {
             setMode(mode === 'login' ? 'register' : 'login')
             setError('')
           }}>
-            {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
+            {mode === 'login' ? 'Create an account' : 'Back to sign in'}
           </button>
           <button className="btn ghost" onClick={onGuest}>Continue as guest</button>
         </div>
