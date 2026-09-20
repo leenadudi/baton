@@ -8,14 +8,14 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from typing import Literal
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import fhir_panel, fhir_write, panel, rules, state, suggest
+from app import fhir_panel, fhir_write, panel, rules, state
 from app import store as store_mod
 from app.extract import extract
 from app.fhir_client import FhirClient
@@ -49,11 +49,6 @@ async def _startup() -> None:
         await fhir_panel.ensure_loaded(fhir)
     except Exception:
         pass  # panel falls back to demo data
-
-
-@app.get("/")
-def root() -> RedirectResponse:
-    return RedirectResponse("/docs")
 
 
 @app.get("/api/health")
@@ -207,15 +202,6 @@ def _ctx(doctor: dict | None = Depends(_optional_doctor),
     yield _Ctx(scope, s, doctor)
     st.save_state(scope, s)
     st.prune()
-
-
-def _ctx_ro(doctor: dict | None = Depends(_optional_doctor),
-            x_session_id: str | None = Header(default=None)) -> _Ctx:
-    """Same scope resolution as _ctx, but never saves — for read-only routes."""
-    st = store_mod.get_store()
-    scope = store_mod.UNIT_SCOPE if doctor else store_mod.session_scope(x_session_id)
-    st.prune()
-    return _Ctx(scope, st.get_state(scope), doctor)
 
 
 def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
@@ -432,49 +418,6 @@ async def publish_brief(ctx: _Ctx = Depends(_ctx)) -> dict:
 async def get_brief(ctx: _Ctx = Depends(_ctx)) -> str:
     await _panel_ready()
     return panel.brief_text(ctx.s)
-
-
-# ---------- advisory AI suggestions (drafts; nothing auto-applies) ----------
-
-
-class SuggestIn(BaseModel):
-    issue_id: str
-
-
-def _suggest_target(issue_id: str, s: dict) -> tuple[dict, dict]:
-    pid = issue_id.split(":")[0]
-    p = dict(_patient_or_404(pid))  # shallow copy — don't mutate the cache
-    p["notes"] = sorted(rules.all_notes(p, panel.effective_state(s)),
-                        key=lambda n: n.get("seq", 0))
-    return p, _issue_or_404(pid, issue_id, s)
-
-
-@app.post("/suggest/owner")
-async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
-    await _panel_ready()
-    p, issue = _suggest_target(body.issue_id, ctx.s)
-    ok = issue["type"] == "blocker" or (
-        issue["type"] == "handoff" and
-        (issue.get("fix") or {}).get("kind") == "pending")
-    if not ok:
-        raise HTTPException(400, "owner applies to blockers and pending results only")
-    return await suggest.owner(issue, p, suggest.OWNERS)
-
-
-@app.post("/suggest/field")
-async def suggest_field(body: SuggestIn, ctx: _Ctx = Depends(_ctx_ro)) -> dict:
-    await _panel_ready()
-    p, issue = _suggest_target(body.issue_id, ctx.s)
-    if not (issue["type"] == "handoff" and
-            (issue.get("fix") or {}).get("kind") == "field"):
-        raise HTTPException(400, "field applies to missing handoff fields only")
-    return await suggest.field(issue, p)
-
-
-@app.post("/suggest/huddle")
-async def suggest_huddle(ctx: _Ctx = Depends(_ctx_ro)) -> dict:
-    await _panel_ready()
-    return await suggest.huddle(panel.brief_text(ctx.s))
 
 
 @app.post("/demo/reset")
