@@ -82,12 +82,15 @@ async def score_file(path: Path) -> bool:
         fn += len(expected - got)
 
     scored = len(items) - api_failures
-    precision = tp / (tp + fp) if tp + fp else 1.0
-    recall = tp / (tp + fn) if tp + fn else 1.0
     skip_note = f" ({skipped} unlabeled skipped)" if skipped else ""
     fail_note = f" ({api_failures} excluded: OpenAI call failed)" if api_failures else ""
-    print(f"\n{path.name}: {exact}/{scored} exact match; "
-          f"tags precision {precision:.2f}, recall {recall:.2f}{skip_note}{fail_note}")
+    if scored == 0:
+        metrics = "tags precision N/A, recall N/A (nothing scored)"
+    else:
+        precision = tp / (tp + fp) if tp + fp else 1.0
+        recall = tp / (tp + fn) if tp + fn else 1.0
+        metrics = f"tags precision {precision:.2f}, recall {recall:.2f}"
+    print(f"\n{path.name}: {exact}/{scored} exact match; {metrics}{skip_note}{fail_note}")
     return api_failures == 0
 
 
