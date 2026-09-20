@@ -27,7 +27,8 @@ button{cursor:pointer;}
 .pill.status i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--handoff);}
 .pill.status.live i{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg);}
 .brand{display:flex;align-items:center;gap:12px;}
-.mark{height:52px;width:auto;flex:none;}
+.mark{height:72px;width:auto;flex:none;margin:-10px 0;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 h1{font-family:var(--head);font-weight:700;font-size:30px;line-height:1.05;margin:0;letter-spacing:-0.01em;}
 .tag{color:var(--ink-2);font-size:14px;margin-top:2px;}
 .tag b{color:var(--ink);font-weight:600;}

@@ -35,11 +35,9 @@ function Panel() {
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <img className="mark" src="/mark.png" alt="" aria-hidden="true" />
-          <div>
-            <h1>Baton</h1>
-            <div className="tag"><b>4 West</b> · medical-surgical</div>
-          </div>
+          <img className="mark" src="/mark.png" alt="Baton" />
+          <h1 className="sr-only">Baton</h1>
+          <div className="tag"><b>4 West</b> · medical-surgical</div>
         </div>
         <div className="actions">
           <span className={`pill status ${status === 'api' ? 'live' : ''}`} title={status === 'api' ? 'Issues computed by the backend rule engine from the FHIR chart' : 'Backend unreachable — running the local demo engine'}>
