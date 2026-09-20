@@ -6,12 +6,7 @@ export default function Sidebar({ query, onQuery, onBrief, onReset, onTeam, auth
   return (
     <aside className="side">
       <div className="side-brand">
-        <svg className="mark" viewBox="0 0 44 44" aria-hidden="true">
-          <rect width="44" height="44" rx="11" fill="var(--nav-ink)" />
-          <circle cx="12" cy="22" r="5" fill="var(--nav)" />
-          <rect x="17" y="19.5" width="12" height="5" rx="2.5" fill="var(--nav)" />
-          <circle cx="32" cy="22" r="5" fill="none" stroke="var(--nav)" strokeWidth="2.5" strokeDasharray="3.2 2.6" />
-        </svg>
+        <img className="mark" src="/logo.png" alt="" />
         <div>
           <div className="n">Baton</div>
           <div className="u">4 West · med-surg</div>
@@ -52,12 +47,12 @@ export default function Sidebar({ query, onQuery, onBrief, onReset, onTeam, auth
           {auth.doctor ? (
             <>
               <div className="n" title="Sharing the unit view with your team">{auth.doctor.name}</div>
-              <button className="lnk" onClick={auth.logout}>Sign out</button>
+              <button className="btn who-btn" onClick={auth.logout} title="Sign out">Sign out</button>
             </>
           ) : (
             <>
               <div className="n" title="Your changes are private to this browser">Guest sandbox</div>
-              <button className="lnk" onClick={auth.onSignIn}>Sign in</button>
+              <button className="btn primary who-btn" onClick={auth.onSignIn} title="Sign in">Sign in</button>
             </>
           )}
         </div>

@@ -27,15 +27,10 @@ export default function LoginScreen({ onLogin, onRegister, onGuest }) {
 
   return (
     <div className="wrap auth">
-      <div className="brand">
-        <svg className="mark" viewBox="0 0 44 44" aria-hidden="true">
-          <rect width="44" height="44" rx="11" fill="var(--ink)" />
-          <circle cx="12" cy="22" r="5" fill="var(--bg)" />
-          <rect x="17" y="19.5" width="12" height="5" rx="2.5" fill="var(--bg)" />
-          <circle cx="32" cy="22" r="5" fill="none" stroke="var(--bg)" strokeWidth="2.5" strokeDasharray="3.2 2.6" />
-        </svg>
+      <div className="brand auth-brand">
+        <img className="mark" src="/logo.png" alt="Baton" />
         <div>
-          <h1>Baton</h1>
+          <h1 className="sr-only">Baton</h1>
           <div className="tag">Find what falls between care team members before the patient does</div>
         </div>
       </div>
@@ -74,7 +69,7 @@ export default function LoginScreen({ onLogin, onRegister, onGuest }) {
             setMode(mode === 'login' ? 'register' : 'login')
             setError('')
           }}>
-            {mode === 'login' ? 'Need an account? Register' : 'Have an account? Sign in'}
+            {mode === 'login' ? 'Create an account' : 'Back to sign in'}
           </button>
           <button className="btn ghost" onClick={onGuest}>Continue as guest</button>
         </div>
