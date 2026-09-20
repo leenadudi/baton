@@ -152,9 +152,8 @@ def test_suggest_does_not_save_state(monkeypatch):
     monkeypatch.setattr(suggest, "_ask", fake_ask({"script": "hi"}))
     from app import store as store_mod
     saves = []
-    orig = store_mod.MemoryStore.save_state
-    monkeypatch.setattr(store_mod.MemoryStore, "save_state",
-                        lambda self, scope, s: saves.append(scope))
+    monkeypatch.setattr(store_mod.get_store(), "save_state",
+                        lambda scope, s: saves.append(scope))
     _, issue = find_issue("conflict")
     saves.clear()  # GET /patients itself persists via _ctx
     assert client.post("/suggest/clarify",
