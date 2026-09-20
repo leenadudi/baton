@@ -8,14 +8,14 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Literal
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import fhir_panel, fhir_write, panel, rules, state
+from app import fhir_panel, fhir_write, panel, rules, state, suggest
 from app import store as store_mod
 from app.extract import extract
 from app.fhir_client import FhirClient
@@ -49,6 +49,11 @@ async def _startup() -> None:
         await fhir_panel.ensure_loaded(fhir)
     except Exception:
         pass  # panel falls back to demo data
+
+
+@app.get("/")
+def root() -> RedirectResponse:
+    return RedirectResponse("/docs")
 
 
 @app.get("/api/health")
@@ -418,6 +423,56 @@ async def publish_brief(ctx: _Ctx = Depends(_ctx)) -> dict:
 async def get_brief(ctx: _Ctx = Depends(_ctx)) -> str:
     await _panel_ready()
     return panel.brief_text(ctx.s)
+
+
+# ---------- advisory AI suggestions (drafts; nothing auto-applies) ----------
+
+
+class SuggestIn(BaseModel):
+    issue_id: str
+
+
+def _suggest_target(issue_id: str, s: dict) -> tuple[dict, dict]:
+    pid = issue_id.split(":")[0]
+    p = _patient_or_404(pid)
+    return p, _issue_or_404(pid, issue_id, s)
+
+
+@app.post("/suggest/clarify")
+async def suggest_clarify(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+    await _panel_ready()
+    p, issue = _suggest_target(body.issue_id, ctx.s)
+    if issue["type"] != "conflict":
+        raise HTTPException(400, "clarify applies to conflict issues only")
+    return await suggest.clarify(issue, p)
+
+
+@app.post("/suggest/owner")
+async def suggest_owner(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+    await _panel_ready()
+    p, issue = _suggest_target(body.issue_id, ctx.s)
+    ok = issue["type"] == "blocker" or (
+        issue["type"] == "handoff" and
+        (issue.get("fix") or {}).get("kind") == "pending")
+    if not ok:
+        raise HTTPException(400, "owner applies to blockers and pending results only")
+    return await suggest.owner(issue, p, suggest.OWNERS)
+
+
+@app.post("/suggest/field")
+async def suggest_field(body: SuggestIn, ctx: _Ctx = Depends(_ctx)) -> dict:
+    await _panel_ready()
+    p, issue = _suggest_target(body.issue_id, ctx.s)
+    if not (issue["type"] == "handoff" and
+            (issue.get("fix") or {}).get("kind") == "field"):
+        raise HTTPException(400, "field applies to missing handoff fields only")
+    return await suggest.field(issue, p)
+
+
+@app.post("/suggest/huddle")
+async def suggest_huddle(ctx: _Ctx = Depends(_ctx)) -> dict:
+    await _panel_ready()
+    return await suggest.huddle(panel.brief_text(ctx.s))
 
 
 @app.post("/demo/reset")

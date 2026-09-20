@@ -114,6 +114,16 @@ export function useChart(doctor) {
     getBrief: () => onApi ? api.brief() : Promise.resolve(briefText(PATIENTS, mockState)),
 
     publishBrief: () => api.publishBrief(),
+
+    // Advisory suggestions exist only against the live backend.
+    suggestClarify: (issueId) => onApi ? api.suggestClarify(issueId)
+      : Promise.reject(new Error('AI suggestions need the live backend')),
+    suggestOwner: (issueId) => onApi ? api.suggestOwner(issueId)
+      : Promise.reject(new Error('AI suggestions need the live backend')),
+    suggestField: (issueId) => onApi ? api.suggestField(issueId)
+      : Promise.reject(new Error('AI suggestions need the live backend')),
+    suggestHuddle: () => onApi ? api.suggestHuddle()
+      : Promise.reject(new Error('AI suggestions need the live backend')),
   }), [onApi, swap, mockActions, mockState])
 
   return { patients, status, actions, fhirWrite }

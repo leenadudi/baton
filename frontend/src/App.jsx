@@ -101,6 +101,7 @@ function Panel() {
           onClose={() => setBrief(null)}
           canPublish={status === 'api' && fhirWrite}
           onPublish={actions.publishBrief}
+          onHuddle={actions.suggestHuddle}
         />
       )}
       {team && <TeamModal patients={patients} initial={teamDoctor} onClose={closeTeam} />}

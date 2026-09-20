@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { OWNERS, TYPE_LABEL, SEV_LABEL } from '../data/chart.js'
 import { ago } from '../lib/rules.js'
+import { SuggestBox, useSuggestion } from './Suggest.jsx'
 
 function OwnerSelect({ issue, actions }) {
   return (
@@ -17,6 +18,25 @@ function OwnerSelect({ issue, actions }) {
 }
 
 function ConflictBody({ issue, actions }) {
+  const sug = useSuggestion(actions.suggestClarify)
+  const [msg, setMsg] = useState('')
+  const [copied, setCopied] = useState('')
+
+  const draft = async () => {
+    await sug.run(issue.id)
+    setMsg('')
+    setCopied('')
+  }
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(msg || sug.data.message)
+      setCopied('Copied')
+    } catch {
+      setCopied('')
+    }
+  }
+
   return (
     <>
       <p className="why">{issue.why} Pick the instruction that should stand.</p>
@@ -39,12 +59,35 @@ function ConflictBody({ issue, actions }) {
           </div>
         ))}
       </div>
+      <div className="row-act">
+        <button
+          className="btn small"
+          disabled={sug.loading}
+          onClick={draft}
+        >{sug.loading ? 'Thinking…' : 'Draft clarifying message'}</button>
+        {sug.error && <span className="tag">{sug.error}</span>}
+      </div>
+      {sug.data?.message && (
+        <SuggestBox onDismiss={sug.clear}>
+          <textarea
+            aria-label="Clarifying message draft"
+            value={msg || sug.data.message}
+            onChange={(e) => setMsg(e.target.value)}
+          />
+          <div className="row-act">
+            <span className="tag" aria-live="polite">{copied}</span>
+            <button className="btn small" onClick={copy}>Copy</button>
+          </div>
+        </SuggestBox>
+      )}
     </>
   )
 }
 
 function HandoffBody({ issue, actions }) {
   const [value, setValue] = useState('')
+  const fsug = useSuggestion(actions.suggestField)
+  const osug = useSuggestion(actions.suggestOwner)
 
   const submit = () => {
     const v = value.trim()
@@ -73,12 +116,70 @@ function HandoffBody({ issue, actions }) {
         <button className="btn small primary" onClick={submit}>
           {issue.fix.kind === 'field' ? 'Save to handoff' : 'Assign follow-up'}
         </button>
+        {issue.fix.kind === 'field' ? (
+          <button
+            className="btn small"
+            disabled={fsug.loading}
+            onClick={() => fsug.run(issue.id)}
+          >{fsug.loading ? 'Thinking…' : 'Suggest from notes'}</button>
+        ) : (
+          <button
+            className="btn small"
+            disabled={osug.loading}
+            onClick={() => osug.run(issue.id)}
+          >{osug.loading ? 'Thinking…' : 'Suggest owner'}</button>
+        )}
       </div>
+      {fsug.error && <span className="tag">{fsug.error}</span>}
+      {osug.error && <span className="tag">{osug.error}</span>}
+      {fsug.data && (
+        <SuggestBox onDismiss={fsug.clear}>
+          {fsug.data.value ? (
+            <>
+              <p>
+                <b>{fsug.data.value}</b>
+                {fsug.data.quote && <> — “{fsug.data.quote}”</>}
+              </p>
+              {fsug.data.source && (
+                <p className="who">
+                  {fsug.data.source.role}, {fsug.data.source.author},{' '}
+                  {fsug.data.source.h}h ago
+                </p>
+              )}
+              <button
+                className="btn small"
+                onClick={() => setValue(fsug.data.value)}
+              >Use suggestion</button>
+            </>
+          ) : (
+            <p>Nothing in the notes states this.</p>
+          )}
+        </SuggestBox>
+      )}
+      {osug.data && (
+        <SuggestBox onDismiss={osug.clear}>
+          {osug.data.owner ? (
+            <>
+              <p><b>{osug.data.owner}</b> — {osug.data.reason}</p>
+              <button
+                className="btn small"
+                onClick={() => {
+                  actions.assignPending(issue.pid, issue.fix.name, osug.data.owner)
+                  osug.clear()
+                }}
+              >Assign {osug.data.owner}</button>
+            </>
+          ) : (
+            <p>No clear owner from the care team.</p>
+          )}
+        </SuggestBox>
+      )}
     </>
   )
 }
 
 function BlockerBody({ issue, actions }) {
+  const osug = useSuggestion(actions.suggestOwner)
   return (
     <>
       <p className="why">{issue.sub} {issue.why}</p>
@@ -93,7 +194,31 @@ function BlockerBody({ issue, actions }) {
             onClick={() => actions.escalateBlocker(issue.pid, issue.bid, issue.title)}
           >Escalate</button>
         )}
+        <button
+          className="btn small"
+          disabled={osug.loading}
+          onClick={() => osug.run(issue.id)}
+        >{osug.loading ? 'Thinking…' : 'Suggest owner'}</button>
       </div>
+      {osug.error && <span className="tag">{osug.error}</span>}
+      {osug.data && (
+        <SuggestBox onDismiss={osug.clear}>
+          {osug.data.owner ? (
+            <>
+              <p><b>{osug.data.owner}</b> — {osug.data.reason}</p>
+              <button
+                className="btn small"
+                onClick={() => {
+                  actions.setOwner(issue.pid, issue.id, osug.data.owner, issue.title)
+                  osug.clear()
+                }}
+              >Assign {osug.data.owner}</button>
+            </>
+          ) : (
+            <p>No clear owner from the care team.</p>
+          )}
+        </SuggestBox>
+      )}
     </>
   )
 }
