@@ -214,9 +214,8 @@ def _ctx_ro(doctor: dict | None = Depends(_optional_doctor),
     """Same scope resolution as _ctx, but never saves — for read-only routes."""
     st = store_mod.get_store()
     scope = store_mod.UNIT_SCOPE if doctor else store_mod.session_scope(x_session_id)
-    ctx = _Ctx(scope, st.get_state(scope), doctor)
     st.prune()
-    return ctx
+    return _Ctx(scope, st.get_state(scope), doctor)
 
 
 def _record(ctx: _Ctx, pid: str | None, text: str, action: str,
