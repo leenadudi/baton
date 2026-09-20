@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -13,12 +14,14 @@ from typing import Literal
 REPO_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(REPO_ROOT / "backend" / ".env")
 
-from app import fhir_panel, panel, rules, state
+from app import fhir_panel, fhir_write, panel, rules, state
 from app.extract import extract
 from app.fhir_client import FhirClient
 from app.rules import FIELDS, TOPICS
 
 PATIENT_IDS_FILE = REPO_ROOT / "dataset" / "patient_ids.json"
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Baton API")
 
@@ -129,8 +132,13 @@ def _patient_or_404(pid: str) -> dict:
     return p
 
 
+def _fid(p: dict) -> str | None:
+    ref = p.get("fhirPatientId") or ""
+    return ref.split("/", 1)[1] if ref.startswith("Patient/") else None
+
+
 def _issue_or_404(pid: str, issue_id: str) -> dict:
-    issue = next((i for i in rules.get_issues(_patient_or_404(pid), state.STATE)
+    issue = next((i for i in rules.get_issues(_patient_or_404(pid), panel.effective_state())
                   if i["id"] == issue_id), None)
     if issue is None:
         raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -191,7 +199,9 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             S["owners"][issue_id] = body.value
             state.log_act(pid, f'Assigned "{issue["title"]}" to {body.value}')
         else:
-            S["owners"].pop(issue_id, None)
+            S["owners"][issue_id] = ""  # tombstone masks a chart-loaded owner
+        await _write(fhir_write.record_issue_owner(fhir, _fid(p) or "", pid,
+                                                   issue_id, body.value), pid)
     elif body.action == "fill":
         if kind != "handoff" or rest not in {f["key"] for f in FIELDS}:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -201,6 +211,8 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
         S["filled"].setdefault(pid, {})[rest] = body.value
         label = next(f["label"] for f in FIELDS if f["key"] == rest)
         state.log_act(pid, f"Added {label} to handoff")
+        await _write(fhir_write.record_fill(fhir, _fid(p) or "", pid,
+                                            rest, body.value), pid)
     elif body.action == "pendingOwner":
         if kind != "handoff" or not rest or not rest.startswith("pend:"):
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -210,6 +222,8 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
             raise HTTPException(422, "value is required to assign an owner")
         S["pendOwners"][f"{pid}|{name}"] = body.value
         state.log_act(pid, f"Assigned {name} follow-up to {body.value}")
+        await _write(fhir_write.record_pending_owner(fhir, _fid(p) or "", pid,
+                                                     name, body.value), pid)
     elif body.action in ("clear", "escalate"):
         if kind != "blocker" or not rest:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -222,6 +236,8 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
         else:
             S["escalated"][f"{pid}|{rest}"] = True
             state.log_act(pid, f"Escalated blocker: {blocker['label']}")
+        await _write(fhir_write.record_blocker_action(fhir, _fid(p) or "", pid,
+                                                      rest, body.action), pid)
     elif body.action == "adopt":
         if kind != "conflict" or rest not in TOPICS:
             raise HTTPException(404, f"unknown issue: {issue_id}")
@@ -229,13 +245,35 @@ async def patch_issue(issue_id: str, body: IssuePatch) -> dict:
         if body.value not in TOPICS[topic]["values"]:
             raise HTTPException(422, f"invalid value for {topic}: {body.value}")
         label = TOPICS[topic]["label"]
-        panel.add_note(pid, {
-            "role": "Attending decision", "author": "Reconciled in Baton",
-            "text": f"Reconciled {label}: proceed with {body.value}. "
-                    "Earlier conflicting instructions are superseded.",
-            "tags": [[topic, body.value]], "reconcile": True})
+        text = (f"Reconciled {label}: proceed with {body.value}. "
+                "Earlier conflicting instructions are superseded.")
+        note = {"role": "Attending decision", "author": "Reconciled in Baton",
+                "text": text, "tags": [[topic, body.value]], "reconcile": True}
+        panel.add_note(pid, note)
+        res = await _write(fhir_write.record_adopt(fhir, _fid(p) or "", pid,
+                                                   topic, body.value, text), pid)
+        if res:
+            note["source"] = {"resourceType": "Communication", "id": res.get("id")}
         state.log_act(pid, f"Reconciled {label} to {body.value}")
     return panel.build_patient(p)
+
+
+async def _write(coro, pid: str):
+    """Run a fhir_write call; failures are logged, never fatal to the local state."""
+    try:
+        return await coro
+    except Exception as exc:
+        log.warning("FHIR write failed: %s", exc)
+        state.log_act(pid, f"FHIR write failed: {exc}")
+        return None
+
+
+@app.post("/brief/publish")
+async def publish_brief() -> dict:
+    if not fhir_write.enabled():
+        raise HTTPException(409, "FHIR_WRITE is off")
+    res = await fhir_write.publish_brief(fhir, panel.brief_text())
+    return {"id": res["id"], "url": res["url"]}
 
 
 @app.get("/brief", response_class=PlainTextResponse)
@@ -247,7 +285,13 @@ async def get_brief() -> str:
 @app.post("/demo/reset")
 async def demo_reset() -> dict:
     state.reset()
-    return {"status": "ok"}
+    result: dict = {"status": "ok"}
+    if fhir_write.enabled():
+        fids = [f for f in (_fid(p) for p in panel.load_patients()) if f]
+        result["deleted"] = await fhir_write.delete_outputs(fhir, fids)
+        fhir_panel.force_invalidate()
+        await fhir_panel.ensure_loaded(fhir)
+    return result
 
 
 @app.post("/demo/refresh")

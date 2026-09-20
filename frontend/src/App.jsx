@@ -7,7 +7,7 @@ import PatientDetail from './components/PatientDetail.jsx'
 import BriefModal from './components/BriefModal.jsx'
 
 function Panel() {
-  const { patients, status, actions } = useChart()
+  const { patients, status, actions, fhirWrite } = useChart()
   const [brief, setBrief] = useState(null)
 
   const openBrief = () => actions.getBrief().then(setBrief)
@@ -76,7 +76,12 @@ function Panel() {
       </p>
 
       {brief !== null && (
-        <BriefModal text={brief} onClose={() => setBrief(null)} />
+        <BriefModal
+          text={brief}
+          onClose={() => setBrief(null)}
+          canPublish={status === 'api' && fhirWrite}
+          onPublish={actions.publishBrief}
+        />
       )}
     </div>
   )

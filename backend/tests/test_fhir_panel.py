@@ -62,7 +62,10 @@ def test_build_patient_matches_demo(p1_built):
             authored.replace("Z", "+00:00"))).total_seconds() / 3600)
         assert abs(b["ageH"] - expected) <= 1
 
-    assert p1_built["pending"] == demo["pending"]
+    pending = [{k: v for k, v in p.items() if k != "source"}
+               for p in p1_built["pending"]]
+    assert pending == demo["pending"]
+    assert all(p["source"]["resourceType"] == "Task" for p in p1_built["pending"])
 
     # notes equal in seq order
     assert len(p1_built["notes"]) == len(demo["notes"])
@@ -102,10 +105,12 @@ class FakeFhirClient:
     """Serves fixture JSON from dataset/fixtures/<pid>/ for every persona."""
 
     def __init__(self, drop_docrefs_for: str | None = None,
-                 drop: dict[str, set] | None = None):
+                 drop: dict[str, set] | None = None,
+                 extra: dict[str, dict] | None = None):
         self.search_calls = 0
         self.drop_docrefs_for = drop_docrefs_for
         self.drop = drop or {}
+        self.extra = extra or {}
         self._by_persona = {}
         fixtures_root = REPO_ROOT / "dataset" / "fixtures"
         demo_map = json.loads(
@@ -131,7 +136,7 @@ class FakeFhirClient:
             return []
         if resource_type in self.drop.get(pid, set()):
             return []
-        return by_type.get(resource_type, [])
+        return by_type.get(resource_type, []) + self.extra.get(pid, {}).get(resource_type, [])
 
 
 def test_invalidate_throttle(fresh_cache):
@@ -176,6 +181,36 @@ def test_ensure_loaded_single_flight(fresh_cache, monkeypatch):
 
 async def _gather5(fake):
     await asyncio.gather(*[fhir_panel.ensure_loaded(fake) for _ in range(5)])
+
+
+OUT_META = {"tag": [{"system": "https://github.com/leenadudi/baton", "code": "demo-fixture"},
+                    {"system": "https://github.com/leenadudi/baton", "code": "baton-output"}]}
+
+
+def test_outputs_read_back(fresh_cache, monkeypatch):
+    """Baton's own baton-out-* writes are folded back into effective state."""
+    monkeypatch.setenv("PANEL_SOURCE", "fhir")
+    comm = {"resourceType": "Communication", "id": "baton-out-comm-1",
+            "sent": "2026-01-01T00:00:00+00:00", "topic": {"text": "weight_bearing"},
+            "reasonCode": [{"text": "partial"}],
+            "payload": [{"contentString": "Reconciled Weight-bearing: proceed with partial."}],
+            "meta": OUT_META}
+    field_task = {"resourceType": "Task", "id": "baton-out-p2-field-codeStatus",
+                  "status": "completed", "intent": "order",
+                  "code": {"text": "Handoff field"}, "description": "codeStatus=Full code",
+                  "authoredOn": "2026-01-01T00:00:00+00:00", "meta": OUT_META}
+    fake = FakeFhirClient(extra={"p1": {"Communication": [comm]},
+                                 "p2": {"Task": [field_task]}})
+    asyncio.run(fhir_panel.ensure_loaded(fake))
+    assert fhir_panel.status()["outputs"] == 2
+
+    from app import state
+    state.reset()
+    p1 = panel.build_patient(panel.get_patient("p1"))
+    assert "p1:conflict:weight_bearing" not in {i["id"] for i in p1["issues"]}
+    p2 = panel.build_patient(panel.get_patient("p2"))
+    assert p2["handoff"]["codeStatus"] == "Full code"
+    assert "p2:handoff:codeStatus" not in {i["id"] for i in p2["issues"]}
 
 
 def test_demo_source_returns_demo(monkeypatch):

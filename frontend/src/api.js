@@ -19,5 +19,7 @@ export const api = {
     req(`/issues/${encodeURIComponent(issueId)}`, { method: 'PATCH', body: { action, value } }),
   addNote: (pid, note) => req(`/patients/${pid}/notes`, { method: 'POST', body: note }),
   brief: () => req('/brief', { text: true }),
+  health: () => req('/api/health'),
+  publishBrief: () => req('/brief/publish', { method: 'POST' }),
   reset: () => req('/demo/reset', { method: 'POST' }),
 }

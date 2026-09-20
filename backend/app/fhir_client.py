@@ -56,6 +56,8 @@ class FhirClient:
                 pass
             raise HTTPException(status_code=resp.status_code,
                                 detail={"fhir_error": detail})
+        if resp.status_code == 204 or not resp.content:
+            return {}
         return resp.json()
 
     async def get(self, resource_type: str, id: str) -> dict:
@@ -76,6 +78,30 @@ class FhirClient:
             if url and not url.startswith("http"):
                 url = f"{self.base_url}/{url.lstrip('/')}"
         return resources[:MAX_RESOURCES]
+
+    @staticmethod
+    def _check_output_id(id: str) -> None:
+        if not id.startswith("baton-out-"):
+            raise ValueError(f"refusing to write resource id without baton-out- prefix: {id}")
+
+    async def create(self, resource_type: str, resource: dict) -> dict:
+        return await self._request(
+            "POST", f"{self.base_url}/{resource_type}", json=resource,
+            headers={"Content-Type": "application/fhir+json"})
+
+    async def put(self, resource_type: str, id: str, resource: dict) -> dict:
+        self._check_output_id(id)
+        return await self._request(
+            "PUT", f"{self.base_url}/{resource_type}/{id}", json=resource,
+            headers={"Content-Type": "application/fhir+json"})
+
+    async def delete(self, resource_type: str, id: str) -> None:
+        self._check_output_id(id)
+        try:
+            await self._request("DELETE", f"{self.base_url}/{resource_type}/{id}")
+        except HTTPException as exc:
+            if exc.status_code not in (404, 410):
+                raise
 
     async def patient_chart(self, patient_id: str) -> dict[str, list[dict] | dict]:
         patient, *results = await asyncio.gather(
