@@ -40,6 +40,10 @@ export default function PatientList({ patients, query }) {
       return b.risk - a.risk
     })
 
+  // Scale the bar to the worst score actually on screen; a fixed ceiling made
+  // every serious patient render as a full bar, which compares nothing.
+  const maxRisk = Math.max(1, ...patients.map((p) => p.risk || 0))
+
   const counts = { all: patients.length, risk: 0, watch: 0, ready: 0 }
   patients.forEach((p) => { counts[p.dischStatus]++ })
 
@@ -72,10 +76,9 @@ export default function PatientList({ patients, query }) {
         <table className="pt-table">
           <thead>
             <tr>
-              <th scope="col">Next action</th>
               <th scope="col">Room</th>
               <th scope="col">Patient</th>
-              <th scope="col">Working diagnosis</th>
+              <th scope="col" className="nact-h">Next action</th>
               <th scope="col">Discharge</th>
               <th scope="col" className="num">Conflicts</th>
               <th scope="col" className="num">Gaps</th>
@@ -90,6 +93,16 @@ export default function PatientList({ patients, query }) {
               const b = p.issues.filter((i) => i.type === 'blocker').length
               return (
                 <tr key={p.id}>
+                  <td><span className="rm">{p.room}</span></td>
+                  <td>
+                    <Link className="who" to={`/patients/${p.id}`}>
+                      <span className="ini" aria-hidden="true">{initials(p.name)}</span>
+                      <span>
+                        <span className="nm">{p.name}</span>
+                        <span className="meta"> · {p.age}</span>
+                      </span>
+                    </Link>
+                  </td>
                   <td className="nact">
                     {p.issues.length ? (
                       <>
@@ -103,17 +116,6 @@ export default function PatientList({ patients, query }) {
                       </>
                     ) : <span className="meta">Nothing open</span>}
                   </td>
-                  <td><span className="rm">{p.room}</span></td>
-                  <td>
-                    <Link className="who" to={`/patients/${p.id}`}>
-                      <span className="ini" aria-hidden="true">{initials(p.name)}</span>
-                      <span>
-                        <span className="nm">{p.name}</span>
-                        <span className="meta"> · {p.age}</span>
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="dxc">{p.dx}</td>
                   <td>
                     <span className={`dch ${p.dischStatus}`}>
                       {etaLabel(p.dischargeInH)} · {DS_LABEL[p.dischStatus]}
@@ -126,7 +128,7 @@ export default function PatientList({ patients, query }) {
                     <span className="riskcell">
                       <b>{p.risk}</b>
                       <span className="riskbar" role="img" aria-label={`Risk score ${p.risk}`}>
-                        <span style={{ width: `${Math.min(100, Math.round((p.risk / 14) * 100))}%` }} />
+                        <span style={{ width: `${Math.round((p.risk / maxRisk) * 100)}%` }} />
                       </span>
                     </span>
                   </td>
