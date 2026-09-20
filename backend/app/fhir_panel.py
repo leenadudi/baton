@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app import demo_patients, rules
+from app import demo_patients, fhir_write, rules
 from app.extract import extract
 from app.fhir_client import FhirClient
 
@@ -33,7 +33,8 @@ REFRESH_MIN_INTERVAL_S = 30
 
 NON_BLOCKER_CODES = {"Pending result", "Follow-up owner", "Medication reconciliation"}
 
-_cache: dict = {"patients": None, "loaded_at": 0.0, "source": "demo", "error": None}
+_cache: dict = {"patients": None, "state": None, "outputs": 0,
+                "loaded_at": 0.0, "source": "demo", "error": None}
 _lock = asyncio.Lock()
 
 
@@ -129,13 +130,15 @@ def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
          "cat": (t.get("code") or {}).get("text"),
          "waitingOn": (t.get("owner") or {}).get("display") or "",
          "ageH": _hours_since(t.get("authoredOn"), now),
-         "blocks": t.get("priority") == "urgent"}
+         "blocks": t.get("priority") == "urgent",
+         "source": {"resourceType": "Task", "id": t.get("id")}}
         for t in open_tasks
         if (t.get("code") or {}).get("text") not in NON_BLOCKER_CODES
     ]
     p["pending"] = [
         {"name": t.get("description"),
-         "owner": (t.get("owner") or {}).get("display") or ""}
+         "owner": (t.get("owner") or {}).get("display") or "",
+         "source": {"resourceType": "Task", "id": t.get("id")}}
         for t in open_tasks
         if (t.get("code") or {}).get("text") == "Pending result"
     ]
@@ -166,28 +169,44 @@ def build_patient_from_chart(persona_id: str, overrides: dict, patient: dict,
     return p
 
 
-async def load_fhir_patients(fhir: FhirClient) -> list[dict]:
-    """Fetch fixture resources for each mapped persona and rebuild panel patients."""
+async def load_fhir_patients(fhir: FhirClient) -> tuple[list[dict], dict, int]:
+    """Fetch fixture resources for each mapped persona and rebuild panel patients.
+
+    Returns (patients, chart_state, n_outputs): chart_state merges Baton's own
+    baton-out-* write-back resources into a state.fresh()-shaped dict.
+    """
     demo_map = json.loads(DEMO_MAP_FILE.read_text())
     personas = {k: v for k, v in demo_map.items() if not k.startswith("_")}
     now = datetime.now(timezone.utc)
     out = []
+    chart_state = {"added": {}, "filled": {}, "cleared": {}, "escalated": {},
+                   "pendOwners": {}, "owners": {}}
+    n_outputs = 0
     for pid, overrides in personas.items():
         ref = (overrides.get("fhirPatientId") or "")
         if not ref.startswith("Patient/"):
             continue
         fid = ref.split("/", 1)[1]
-        patient, docrefs, tasks, consents, allergies = await asyncio.gather(
+        patient, docrefs, tasks, consents, allergies, comms = await asyncio.gather(
             fhir.get("Patient", fid),
             fhir.search("DocumentReference", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Task", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("Consent", patient=fid, _tag=FIXTURE_TAG, _count=100),
             fhir.search("AllergyIntolerance", patient=fid, _tag=FIXTURE_TAG, _count=100),
+            fhir.search("Communication", patient=fid, _tag=FIXTURE_TAG, _count=100),
         )
         docrefs = [r for r in docrefs if is_fixture(r)]
         tasks = [r for r in tasks if is_fixture(r)]
         consents = [r for r in consents if is_fixture(r)]
         allergies = [r for r in allergies if is_fixture(r)]
+        output_comms = [r for r in comms if fhir_write.is_output(r)]
+        output_tasks = [t for t in tasks if fhir_write.is_output(t)]
+        tasks = [t for t in tasks if not fhir_write.is_output(t)]
+        n_outputs += len(output_comms) + len(output_tasks)
+        pstate = fhir_write.outputs_to_state(pid, output_comms, output_tasks)
+        for k, v in pstate.items():
+            if isinstance(v, dict):
+                chart_state[k].update(v)
         # pre-resolve any note text missing from the ground-truth map
         await asyncio.gather(*(
             tags_for(_decode_docref_text(dr),
@@ -211,7 +230,7 @@ async def load_fhir_patients(fhir: FhirClient) -> list[dict]:
             raise RuntimeError(
                 f"incomplete fixtures for {pid}: missing {', '.join(missing)}")
         out.append(built)
-    return out
+    return out, chart_state, n_outputs
 
 
 async def ensure_loaded(fhir: FhirClient) -> None:
@@ -227,13 +246,13 @@ async def ensure_loaded(fhir: FhirClient) -> None:
         if time.time() - _cache["loaded_at"] < PANEL_TTL_S:
             return
         try:
-            patients = await load_fhir_patients(fhir)
-            _cache.update(patients=patients, source="fhir", error=None,
-                          loaded_at=time.time())
+            patients, cstate, n_out = await load_fhir_patients(fhir)
+            _cache.update(patients=patients, state=cstate, outputs=n_out,
+                          source="fhir", error=None, loaded_at=time.time())
         except Exception as exc:
             log.warning("FHIR panel load failed, falling back to demo data: %s", exc)
-            _cache.update(patients=None, source="demo", error=str(exc),
-                          loaded_at=time.time())
+            _cache.update(patients=None, state=None, outputs=0, source="demo",
+                          error=str(exc), loaded_at=time.time())
 
 
 def invalidate() -> bool:
@@ -246,6 +265,16 @@ def invalidate() -> bool:
     return True
 
 
+def force_invalidate() -> None:
+    _cache["loaded_at"] = 0.0
+
+
+def chart_state() -> dict | None:
+    if _cache["state"] is None:
+        return None
+    return copy.deepcopy(_cache["state"])
+
+
 def current_patients() -> list[dict] | None:
     if _cache["patients"] is None:
         return None
@@ -254,4 +283,5 @@ def current_patients() -> list[dict] | None:
 
 def status() -> dict:
     return {"source": _cache["source"], "loaded_at": _cache["loaded_at"],
-            "error": _cache["error"], "ttl_s": PANEL_TTL_S}
+            "error": _cache["error"], "ttl_s": PANEL_TTL_S,
+            "fhir_write": fhir_write.enabled(), "outputs": _cache["outputs"]}

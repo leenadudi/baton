@@ -32,12 +32,14 @@ export function useChart() {
   const [mockState, mockActions] = useDemoState()
   const [served, setServed] = useState(null)
   const [status, setStatus] = useState('loading') // loading | api | mock
+  const [fhirWrite, setFhirWrite] = useState(false)
 
   useEffect(() => {
     let live = true
     api.listPatients()
       .then((ps) => { if (live) { setServed(ps); setStatus('api') } })
       .catch(() => { if (live) setStatus('mock') })
+    api.health().then((h) => { if (live) setFhirWrite(!!h?.panel?.fhir_write) }).catch(() => {})
     return () => { live = false }
   }, [])
 
@@ -88,7 +90,9 @@ export function useChart() {
 
     // Server owns the brief when available, so it cannot drift from the cards.
     getBrief: () => onApi ? api.brief() : Promise.resolve(briefText(PATIENTS, mockState)),
+
+    publishBrief: () => api.publishBrief(),
   }), [onApi, swap, mockActions, mockState])
 
-  return { patients, status, actions }
+  return { patients, status, actions, fhirWrite }
 }
